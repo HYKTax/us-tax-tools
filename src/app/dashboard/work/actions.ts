@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { hasStaffPermission } from "@/lib/staff-permissions";
 
 const returnTypes = new Set(["1040","1040-NR","1065","1120-S","1120","1041","990","706","709","other"]);
 const statuses = new Set([
@@ -27,7 +28,9 @@ export async function createTaxReturnJob(input: {
   reviewerId?: string;
 }): Promise<ReturnActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "returns.manage")) {
+    return { error: "Your role cannot manage tax-return workflow." };
+  }
   if (!returnTypes.has(input.returnType)) return { error: "Choose a valid return type." };
   if (!Number.isInteger(input.taxYear) || input.taxYear < 2000 || input.taxYear > 2100) {
     return { error: "Enter a valid tax year." };
@@ -69,7 +72,9 @@ export async function updateTaxReturnJob(input: {
   efileStatus: string;
 }): Promise<ReturnActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "returns.manage")) {
+    return { error: "Your role cannot manage tax-return workflow." };
+  }
   if (!statuses.has(input.status)) return { error: "Choose a valid workflow status." };
   if (!priorities.has(input.priority)) return { error: "Choose a valid priority." };
   if (!extensionStatuses.has(input.extensionStatus)) return { error: "Choose a valid extension status." };
