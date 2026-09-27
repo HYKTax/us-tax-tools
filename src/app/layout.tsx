@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "US Tax Tools",
+  title: {
+    default: "Tax Preparer Tools",
+    template: "%s | Tax Preparer Tools",
+  },
   description:
-    "Secure tax organizer and document portal for accounting firms and their clients.",
+    "Secure client portal, tax organizers, documents, and collaboration for tax and accounting firms.",
 };
 
 export default function RootLayout({
