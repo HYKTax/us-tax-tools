@@ -1,4 +1,6 @@
 import { Notifications } from "@/components/notifications";
+import { StaffSidebar } from "@/components/staff-sidebar";
+import { Brand } from "@/components/brand";
 import { notificationEmailConfigured } from "@/lib/email";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -12,40 +14,44 @@ export default async function DashboardLayout({
 }) {
   const profile = await getCurrentProfile();
 
-  if (!profile) {
-    redirect("/login");
-  }
-  if (profile.role === "client") {
-    redirect("/portal");
-  }
+  if (!profile) redirect("/login");
+  if (profile.role === "client") redirect("/portal");
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-hairline bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <nav className="flex items-center gap-5 text-sm">
-            <Link href="/dashboard" className="font-semibold text-ink">
-              US Tax Tools
-            </Link>
-            <Link href="/dashboard/clients" className="text-ink-muted hover:text-ink">
-              Clients
-            </Link>
-            <Link href="/dashboard/templates" className="text-ink-muted hover:text-ink">
-              Templates
-            </Link>
-          </nav>
-          <div className="flex items-center gap-3 text-sm text-ink-muted">
-            <Notifications area="dashboard" emailConfigured={notificationEmailConfigured()} />
-            <span>{profile.full_name}</span>
-            <form action={signOut}>
-              <button className="underline underline-offset-2 hover:text-ink">
-                Sign out
-              </button>
-            </form>
+    <div className="min-h-screen bg-slate-50 lg:flex">
+      <StaffSidebar />
+      <div className="min-w-0 flex-1">
+        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+          <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            <div className="lg:hidden">
+              <Brand />
+            </div>
+            <nav className="hidden items-center gap-1 text-sm lg:flex">
+              <Link href="/dashboard" className="font-semibold text-slate-900">Firm workspace</Link>
+              <span className="text-slate-300">/</span>
+              <span className="capitalize text-slate-500">{profile.role.replace("_", " ")}</span>
+            </nav>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Notifications area="dashboard" emailConfigured={notificationEmailConfigured()} />
+              <div className="hidden text-right sm:block">
+                <p className="text-sm font-medium text-slate-900">{profile.full_name}</p>
+                <p className="text-xs text-slate-500">{profile.email}</p>
+              </div>
+              <form action={signOut}>
+                <button className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">
+                  Sign out
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-4xl px-6 py-8">{children}</main>
+          <nav className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 py-2 text-sm lg:hidden">
+            <Link href="/dashboard" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Dashboard</Link>
+            <Link href="/dashboard/clients" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Clients</Link>
+            <Link href="/dashboard/templates" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Templates</Link>
+          </nav>
+        </header>
+        <main className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+      </div>
     </div>
   );
 }
