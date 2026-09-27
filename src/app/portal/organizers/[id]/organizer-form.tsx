@@ -25,6 +25,11 @@ export type ItemWithResponse = {
   documents: DocRow[];
 };
 
+function isAnswered(item: ItemWithResponse) {
+  if (item.response_type === "file") return item.documents.length > 0;
+  return item.value !== null && item.value !== undefined && item.value !== "";
+}
+
 export function OrganizerForm({
   organizerId,
   firmId,
@@ -41,44 +46,76 @@ export function OrganizerForm({
   const [submitPending, startSubmit] = useTransition();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  return (
-    <div className="flex flex-col gap-5">
-      {items.map((item, index) => {
-        const previousSectionTitle = items[index - 1]?.section_title ?? null;
-        const showSectionHeader = Boolean(item.section_title) && item.section_title !== previousSectionTitle;
+  const completed = items.filter(isAnswered).length;
+  const progress = items.length === 0 ? 100 : Math.round((completed / items.length) * 100);
+  const requiredRemaining = items.filter((item) => item.is_required && !isAnswered(item)).length;
 
-        return (
-          <div key={item.id} className="flex flex-col gap-2">
-            {showSectionHeader && (
-              <h2 className="mt-2 font-medium text-ink">{item.section_title}</h2>
-            )}
-            <ItemField
-              item={item}
-              organizerId={organizerId}
-              firmId={firmId}
-              clientId={clientId}
-              readOnly={readOnly}
-            />
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div>
+            <p className="font-semibold text-slate-900">{readOnly ? "Organizer complete" : "Your progress"}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {completed} of {items.length} items completed
+              {!readOnly && requiredRemaining > 0 ? " · " + requiredRemaining + " required remaining" : ""}
+            </p>
           </div>
-        );
-      })}
+          <span className="font-semibold text-blue-600">{progress}%</span>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+          <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: String(progress) + "%" }} />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {items.map((item, index) => {
+          const previousSectionTitle = items[index - 1]?.section_title ?? null;
+          const showSectionHeader = Boolean(item.section_title) && item.section_title !== previousSectionTitle;
+
+          return (
+            <div key={item.id} className="flex flex-col gap-3">
+              {showSectionHeader && (
+                <div className={index === 0 ? "" : "mt-4"}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">Section</p>
+                  <h2 className="mt-1 text-lg font-semibold text-slate-950">{item.section_title}</h2>
+                </div>
+              )}
+              <ItemField
+                item={item}
+                organizerId={organizerId}
+                firmId={firmId}
+                clientId={clientId}
+                readOnly={readOnly}
+              />
+            </div>
+          );
+        })}
+      </div>
 
       {!readOnly && (
-        <div className="mt-4 flex flex-col items-start gap-2">
-          <button
-            onClick={() => {
-              setSubmitError(null);
-              startSubmit(async () => {
-                const result = await submitOrganizerAction(organizerId);
-                if (result.error) setSubmitError(result.error);
-              });
-            }}
-            disabled={submitPending}
-            className="rounded-md bg-ledger px-4 py-2 font-medium text-white hover:bg-ledger-dark disabled:opacity-60"
-          >
-            {submitPending ? "Submitting…" : "Submit organizer"}
-          </button>
-          {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+        <div className="border-t border-slate-100 pt-5">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-500">
+              {requiredRemaining > 0
+                ? "Complete the remaining " + requiredRemaining + " required item" + (requiredRemaining === 1 ? "" : "s") + " before submitting."
+                : "All required items are complete. You can submit this organizer for review."}
+            </p>
+            <button
+              onClick={() => {
+                setSubmitError(null);
+                startSubmit(async () => {
+                  const result = await submitOrganizerAction(organizerId);
+                  if (result.error) setSubmitError(result.error);
+                });
+              }}
+              disabled={submitPending}
+              className="shrink-0 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitPending ? "Submitting…" : "Submit organizer"}
+            </button>
+          </div>
+          {submitError && <p className="mt-3 text-sm text-red-600">{submitError}</p>}
         </div>
       )}
     </div>
@@ -105,6 +142,7 @@ function ItemField({
 
   function commit(next: unknown) {
     setValue(next);
+    setErrorMessage(null);
     setStatus("saving");
     startTransition(async () => {
       const result = await saveResponse(item.id, next);
@@ -117,68 +155,72 @@ function ItemField({
     });
   }
 
+  const fieldClass = "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
+
   const label = (
-    <label className="flex flex-col gap-1 text-sm text-ink">
-      <span>
+    <div>
+      <p className="text-sm font-semibold text-slate-900">
         {item.prompt}
-        {item.is_required && <span className="text-red-600"> *</span>}
-      </span>
-      {item.help_text && <span className="text-xs text-ink-muted">{item.help_text}</span>}
-    </label>
+        {item.is_required && <span className="ml-1 text-red-500">*</span>}
+      </p>
+      {item.help_text && <p className="mt-1 text-xs leading-5 text-slate-500">{item.help_text}</p>}
+    </div>
   );
 
   const statusLine = (
-    <div className="h-4 text-xs">
-      {status === "saving" && <span className="text-ink-muted">Saving…</span>}
-      {status === "saved" && <span className="text-ledger">Saved</span>}
+    <div className="mt-2 h-4 text-xs">
+      {status === "saving" && <span className="text-slate-500">Saving…</span>}
+      {status === "saved" && <span className="font-medium text-emerald-600">✓ Saved</span>}
       {status === "error" && <span className="text-red-600">{errorMessage}</span>}
     </div>
   );
 
   if (readOnly) {
     return (
-      <div className="rounded-md border border-hairline bg-white p-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
         {label}
-        {item.response_type === "file" ? (
-          item.documents.length > 0 ? (
-            <ul className="mt-1 flex flex-col gap-1">
-              {item.documents.map((d) => (
-                <li key={d.id} className="text-sm">
-                  {d.url ? (
-                    <a
-                      href={d.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-ledger hover:underline"
-                    >
-                      {d.file_name}
-                    </a>
-                  ) : (
-                    d.file_name
-                  )}
-                </li>
-              ))}
-            </ul>
+        <div className="mt-3 rounded-lg bg-slate-50 px-4 py-3">
+          {item.response_type === "file" ? (
+            item.documents.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {item.documents.map((document) => (
+                  <li key={document.id} className="text-sm">
+                    {document.url ? (
+                      <a
+                        href={document.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-blue-600 hover:text-blue-700"
+                      >
+                        {document.file_name} ↗
+                      </a>
+                    ) : (
+                      <span className="text-slate-700">{document.file_name}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-slate-500">No file uploaded</p>
+            )
           ) : (
-            <p className="mt-1 text-sm text-ink-muted">No file uploaded</p>
-          )
-        ) : (
-          <p className="mt-1 text-ink-muted">{String(value ?? "—")}</p>
-        )}
+            <p className="whitespace-pre-wrap text-sm text-slate-700">{String(value ?? "No response")}</p>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-md border border-hairline bg-white p-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-5 transition focus-within:border-blue-200 focus-within:shadow-sm">
       {label}
-      <div className="mt-2">
+      <div className="mt-3">
         {item.response_type === "text" && (
           <input
             type="text"
             defaultValue={typeof value === "string" ? value : ""}
-            onBlur={(e) => commit(e.target.value)}
-            className="w-full rounded-md border border-hairline px-3 py-2 outline-none focus:border-ledger"
+            onBlur={(event) => commit(event.target.value)}
+            className={fieldClass}
           />
         )}
 
@@ -186,20 +228,18 @@ function ItemField({
           <input
             type="number"
             defaultValue={typeof value === "number" ? value : ""}
-            onBlur={(e) => commit(e.target.value === "" ? null : Number(e.target.value))}
-            className="w-full rounded-md border border-hairline px-3 py-2 outline-none focus:border-ledger"
+            onBlur={(event) => commit(event.target.value === "" ? null : Number(event.target.value))}
+            className={fieldClass}
           />
         )}
 
         {item.response_type === "boolean" && (
           <select
             defaultValue={value === true ? "true" : value === false ? "false" : ""}
-            onChange={(e) => commit(e.target.value === "true")}
-            className="w-full rounded-md border border-hairline px-3 py-2"
+            onChange={(event) => commit(event.target.value === "true")}
+            className={fieldClass}
           >
-            <option value="" disabled>
-              Choose one
-            </option>
+            <option value="" disabled>Choose one</option>
             <option value="true">Yes</option>
             <option value="false">No</option>
           </select>
@@ -209,26 +249,20 @@ function ItemField({
           (item.options?.choices?.length ? (
             <select
               defaultValue={typeof value === "string" ? value : ""}
-              onChange={(e) => commit(e.target.value)}
-              className="w-full rounded-md border border-hairline px-3 py-2"
+              onChange={(event) => commit(event.target.value)}
+              className={fieldClass}
             >
-              <option value="" disabled>
-                Choose one
-              </option>
+              <option value="" disabled>Choose one</option>
               {item.options.choices.map((choice) => (
-                <option key={choice} value={choice}>
-                  {choice}
-                </option>
+                <option key={choice} value={choice}>{choice}</option>
               ))}
             </select>
           ) : (
-            // No choices configured on this question yet — fall back to
-            // free text rather than rendering a dropdown with nothing in it.
             <input
               type="text"
               defaultValue={typeof value === "string" ? value : ""}
-              onBlur={(e) => commit(e.target.value)}
-              className="w-full rounded-md border border-hairline px-3 py-2 outline-none focus:border-ledger"
+              onBlur={(event) => commit(event.target.value)}
+              className={fieldClass}
             />
           ))}
 
@@ -264,17 +298,23 @@ function FileField({
   async function handleUpload(file: File) {
     setUploading(true);
     setError(null);
+
     try {
       if (file.size > 20 * 1024 * 1024) {
         throw new Error("Choose a file no larger than 20 MB.");
       }
+
       if (!["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
         throw new Error("Choose a PDF, JPEG, PNG, WebP, or GIF file.");
       }
+
       const supabase = createClient();
       const { data: claims, error: authError } = await supabase.auth.getClaims();
-      if (authError || !claims?.claims?.sub) throw new Error("Please sign in again before uploading.");
-      const path = `${firmId}/${clientId}/${crypto.randomUUID()}-${file.name}`;
+      if (authError || !claims?.claims?.sub) {
+        throw new Error("Please sign in again before uploading.");
+      }
+
+      const path = [firmId, clientId, crypto.randomUUID() + "-" + file.name].join("/");
 
       const { error: uploadError } = await supabase.storage
         .from("client-documents")
@@ -304,7 +344,7 @@ function FileField({
         .from("client-documents")
         .createSignedUrl(path, 60 * 60);
 
-      setDocuments((prev) => [...prev, { ...docRow, url: signed?.signedUrl ?? null }]);
+      setDocuments((previous) => [...previous, { ...docRow, url: signed?.signedUrl ?? null }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -313,37 +353,41 @@ function FileField({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {documents.length > 0 && (
-        <ul className="text-sm text-ink-muted">
-          {documents.map((d) => (
-            <li key={d.id}>
-              ✓{" "}
-              {d.url ? (
-                <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-ledger hover:underline">
-                  {d.file_name}
+        <ul className="flex flex-col gap-2">
+          {documents.map((document) => (
+            <li key={document.id} className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              <span aria-hidden="true">✓</span>
+              {document.url ? (
+                <a href={document.url} target="_blank" rel="noopener noreferrer" className="truncate font-semibold hover:underline">
+                  {document.file_name}
                 </a>
               ) : (
-                d.file_name
+                <span className="truncate">{document.file_name}</span>
               )}
             </li>
           ))}
         </ul>
       )}
-      <input
-        type="file"
-        accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
-        aria-label={`Upload a file for ${item.prompt}`}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void handleUpload(file);
-          e.target.value = "";
-        }}
-        disabled={uploading}
-        className="text-sm"
-      />
-      <p className="text-xs text-ink-muted">PDF, JPEG, PNG, WebP, or GIF. Maximum 20 MB per file.</p>
-      {uploading && <p className="text-xs text-ink-muted">Uploading…</p>}
+
+      <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50/40">
+        <span className="text-sm font-semibold text-slate-800">{uploading ? "Uploading…" : "Choose a document to upload"}</span>
+        <span className="mt-1 text-xs text-slate-500">PDF or image · maximum 20 MB</span>
+        <input
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
+          aria-label={"Upload a file for " + item.prompt}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void handleUpload(file);
+            event.target.value = "";
+          }}
+          disabled={uploading}
+          className="sr-only"
+        />
+      </label>
+
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
     </div>
   );
