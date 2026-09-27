@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export type TemplateItemInput = {
   prompt: string;
   help_text: string;
+  section_title?: string;
   response_type: "text" | "number" | "boolean" | "select" | "file";
   is_required: boolean;
   choices?: string[];
@@ -26,7 +27,11 @@ export async function createTemplate(input: {
 
   const name = input.name.trim();
   const items = input.items
-    .map((item) => ({ ...item, prompt: item.prompt.trim() }))
+    .map((item) => ({
+      ...item,
+      prompt: item.prompt.trim(),
+      section_title: item.section_title?.trim() ?? "",
+    }))
     .filter((item) => item.prompt.length > 0);
 
   if (!name) {
@@ -53,10 +58,11 @@ export async function createTemplate(input: {
   }
 
   const rows = items.map((item, index) => {
-    const choices = (item.choices ?? []).map((c) => c.trim()).filter(Boolean);
+    const choices = (item.choices ?? []).map((choice) => choice.trim()).filter(Boolean);
     return {
       template_id: template.id,
       sort_order: index,
+      section_title: item.section_title || null,
       prompt: item.prompt,
       help_text: item.help_text.trim() || null,
       response_type: item.response_type,
