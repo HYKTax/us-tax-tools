@@ -51,6 +51,14 @@ export async function GET(request: NextRequest) {
     redirect(`/auth/error?message=${encodeURIComponent(error.message)}`);
   }
 
+  // Harmless for clients/current admins: the RPC returns false unless the
+  // signed-in user has a pending staff invitation. This lets Team show the
+  // difference between "invited" and "accepted" without exposing auth.users.
+  const { error: invitationError } = await supabase.rpc("mark_staff_invitation_accepted");
+  if (invitationError) {
+    console.error("[auth/confirm] staff invitation status update failed:", invitationError.message);
+  }
+
   if (next) {
     redirect(next as Route);
   }
