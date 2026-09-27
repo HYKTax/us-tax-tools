@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { InviteButton, SendOrganizerForm } from "./client-actions";
 import { CreateReturnJobForm } from "@/app/dashboard/work/create-return-job-form";
+import { canBePreparer, canBeReviewer, type StaffOperationalRole } from "@/lib/staff-permissions";
 
 type OrganizerRow = {
   id: string;
@@ -84,7 +85,7 @@ export default async function ClientDetailPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("profiles")
-      .select("id, full_name")
+      .select("id, full_name, staff_role")
       .in("role", ["firm_admin", "firm_staff"])
       .eq("is_active", true)
       .order("full_name"),
@@ -92,6 +93,13 @@ export default async function ClientDetailPage({
 
   const organizerRows = (organizers ?? []) as OrganizerRow[];
   const jobRows = (returnJobs ?? []) as ReturnJobRow[];
+  const staffRows = (staff ?? []) as Array<{
+    id: string;
+    full_name: string;
+    staff_role: StaffOperationalRole;
+  }>;
+  const preparers = staffRows.filter((member) => canBePreparer(member.staff_role));
+  const reviewers = staffRows.filter((member) => canBeReviewer(member.staff_role));
   const pendingOrganizers = organizerRows.filter((organizer) => ["sent", "in_progress"].includes(organizer.status)).length;
   const submitted = organizerRows.filter((organizer) => organizer.status === "submitted").length;
   const openReturns = jobRows.filter((job) => !["accepted", "completed"].includes(job.status)).length;
@@ -167,7 +175,8 @@ export default async function ClientDetailPage({
           <div className="mt-5">
             <CreateReturnJobForm
               clientId={client.id}
-              staff={staff ?? []}
+              preparers={preparers}
+              reviewers={reviewers}
               organizers={organizerRows.map((organizer) => ({
                 id: organizer.id,
                 title: organizer.title,
