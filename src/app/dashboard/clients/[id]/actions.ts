@@ -6,13 +6,14 @@ import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { authEmailFailure } from "@/lib/auth-email-errors";
+import { hasStaffPermission } from "@/lib/staff-permissions";
 
 type ActionResult = { error?: string; success?: boolean; message?: string; cooldownSeconds?: number };
 
 export async function inviteClient(clientId: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") {
-    return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "clients.manage")) {
+    return { error: "Your role cannot manage client access." };
   }
 
   const supabase = await createClient();
