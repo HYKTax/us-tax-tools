@@ -5,7 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
-type ActionResult = { error?: string; success?: boolean };
+type ActionResult = { error?: string; success?: boolean; message?: string };
 
 const supportedImages = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
@@ -375,4 +375,36 @@ export async function linkDocumentToReturn(
   revalidatePath(`/dashboard/documents/${documentId}`);
   if (data.tax_return_job_id) revalidatePath(`/dashboard/work/${data.tax_return_job_id}`);
   return { success: true };
+}
+
+
+export async function acceptExtractionToReturn(documentId: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile || profile.role === "client") return { error: "Not authorized." };
+
+  const supabase = await createClient();
+  const { data: document } = await supabase
+    .from("documents")
+    .select("id, tax_return_job_id")
+    .eq("id", documentId)
+    .maybeSingle();
+
+  if (!document) return { error: "Document not found." };
+
+  const { data: count, error } = await supabase.rpc("accept_document_extraction", {
+    p_document_id: documentId,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/documents");
+  revalidatePath(`/dashboard/documents/${documentId}`);
+  if (document.tax_return_job_id) {
+    revalidatePath(`/dashboard/work/${document.tax_return_job_id}`);
+  }
+
+  return {
+    success: true,
+    message: `${count ?? 0} reviewed field${count === 1 ? "" : "s"} accepted into return data.`,
+  };
 }
