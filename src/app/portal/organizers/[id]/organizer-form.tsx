@@ -45,10 +45,24 @@ export function OrganizerForm({
 }) {
   const [submitPending, startSubmit] = useTransition();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [answeredIds, setAnsweredIds] = useState<Set<string>>(
+    () => new Set(items.filter(isAnswered).map((item) => item.id))
+  );
 
-  const completed = items.filter(isAnswered).length;
+  const completed = answeredIds.size;
   const progress = items.length === 0 ? 100 : Math.round((completed / items.length) * 100);
-  const requiredRemaining = items.filter((item) => item.is_required && !isAnswered(item)).length;
+  const requiredRemaining = items.filter(
+    (item) => item.is_required && !answeredIds.has(item.id)
+  ).length;
+
+  function updateAnswered(itemId: string, answered: boolean) {
+    setAnsweredIds((previous) => {
+      const next = new Set(previous);
+      if (answered) next.add(itemId);
+      else next.delete(itemId);
+      return next;
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,6 +101,7 @@ export function OrganizerForm({
                 firmId={firmId}
                 clientId={clientId}
                 readOnly={readOnly}
+                onAnsweredChange={(answered) => updateAnswered(item.id, answered)}
               />
             </div>
           );
@@ -128,12 +143,14 @@ function ItemField({
   firmId,
   clientId,
   readOnly,
+  onAnsweredChange,
 }: {
   item: ItemWithResponse;
   organizerId: string;
   firmId: string;
   clientId: string;
   readOnly: boolean;
+  onAnsweredChange: (answered: boolean) => void;
 }) {
   const [value, setValue] = useState(item.value);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -151,6 +168,7 @@ function ItemField({
         setErrorMessage(result.error);
       } else {
         setStatus("saved");
+        onAnsweredChange(next !== null && next !== undefined && next !== "");
       }
     });
   }
@@ -272,6 +290,7 @@ function ItemField({
             organizerId={organizerId}
             firmId={firmId}
             clientId={clientId}
+            onUploaded={() => onAnsweredChange(true)}
           />
         )}
       </div>
@@ -285,11 +304,13 @@ function FileField({
   organizerId,
   firmId,
   clientId,
+  onUploaded,
 }: {
   item: ItemWithResponse;
   organizerId: string;
   firmId: string;
   clientId: string;
+  onUploaded: () => void;
 }) {
   const [documents, setDocuments] = useState(item.documents);
   const [uploading, setUploading] = useState(false);
@@ -345,6 +366,7 @@ function FileField({
         .createSignedUrl(path, 60 * 60);
 
       setDocuments((previous) => [...previous, { ...docRow, url: signed?.signedUrl ?? null }]);
+      onUploaded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
