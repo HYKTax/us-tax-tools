@@ -12,5 +12,9 @@ export default async function Home() {
     redirect("/login");
   }
 
+  if (!profile.is_active) {
+    redirect("/auth/access-disabled");
+  }
+
   redirect(profile.role === "client" ? "/portal" : "/dashboard");
 }
