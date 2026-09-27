@@ -8,6 +8,13 @@ import { MessageThread } from "@/components/message-thread";
 import type { PostedMessage } from "@/lib/actions/messages";
 import { MarkReviewedButton } from "./mark-reviewed-button";
 
+function statusClasses(status: string) {
+  if (status === "reviewed") return "bg-emerald-50 text-emerald-700";
+  if (status === "submitted") return "bg-blue-50 text-blue-700";
+  if (status === "sent" || status === "in_progress") return "bg-amber-50 text-amber-700";
+  return "bg-slate-100 text-slate-600";
+}
+
 export default async function StaffOrganizerPage({
   params,
 }: {
@@ -28,9 +35,7 @@ export default async function StaffOrganizerPage({
     throw new Error("Unable to load this organizer. Please try again.");
   }
 
-  if (!organizer || !profile) {
-    notFound();
-  }
+  if (!organizer || !profile) notFound();
 
   const { data: items } = await supabase
     .from("organizer_items")
@@ -78,80 +83,121 @@ export default async function StaffOrganizerPage({
 
   const clientName =
     (organizer.clients as unknown as { primary_contact_name: string } | null)
-      ?.primary_contact_name ?? "";
+      ?.primary_contact_name ?? "Client";
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
+    <div className="flex flex-col gap-7">
+      <section>
         <Link
           href={`/dashboard/clients/${organizer.client_id}`}
-          className="text-sm text-ledger hover:underline"
+          className="text-sm font-semibold text-blue-600 hover:text-blue-700"
         >
           ← {clientName}
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold text-ink">{organizer.title}</h1>
-        <p className="text-ink-muted">
-          Tax year {organizer.tax_year} ·{" "}
-          <span className="capitalize">{organizer.status.replace("_", " ")}</span>
-          {organizer.submitted_at &&
-            ` · submitted ${new Date(organizer.submitted_at).toLocaleDateString()}`}
-        </p>
-        {organizer.status === "submitted" && (
-          <div className="mt-3">
-            <MarkReviewedButton organizerId={organizer.id} />
-          </div>
-        )}
-      </div>
 
-      {(organizer.status === "submitted" || organizer.status === "reviewed") && <RequestChanges organizerId={id} />}
-      {organizer.change_request_reason && <p className="whitespace-pre-wrap rounded border border-hairline p-3 text-sm">Last correction request: {organizer.change_request_reason}</p>}
-      <section className="flex flex-col gap-3">
-        <h2 className="font-medium text-ink">Responses</h2>
-        {(items ?? []).map((item) => {
-          const docs = documentsByItem.get(item.id) ?? [];
-          return (
-            <div key={item.id} className="rounded-md border border-hairline bg-white p-4">
-              <p className="text-sm text-ink">{item.prompt}</p>
-              {item.response_type === "file" ? (
-                docs.length > 0 ? (
-                  <ul className="mt-1 flex flex-col gap-1">
-                    {docs.map((d) => (
-                      <li key={d.id} className="text-sm">
-                        {d.url ? (
-                          <a
-                            href={d.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-ledger hover:underline"
-                          >
-                            {d.file_name}
-                          </a>
-                        ) : (
-                          d.file_name
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-1 text-sm text-ink-muted">No file uploaded</p>
-                )
-              ) : (
-                <p className="mt-1 text-sm text-ink-muted">
-                  {String(responseByItem.get(item.id) ?? "—")}
-                </p>
-              )}
+        <div className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div>
+            <p className="text-sm font-semibold text-blue-600">Organizer review</p>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{organizer.title}</h1>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClasses(organizer.status)}`}>
+                {organizer.status.replace("_", " ")}
+              </span>
             </div>
-          );
-        })}
+            <p className="mt-2 text-slate-500">
+              {clientName} · Tax year {organizer.tax_year}
+              {organizer.submitted_at ? ` · Submitted ${new Date(organizer.submitted_at).toLocaleDateString()}` : ""}
+            </p>
+          </div>
+
+          {organizer.status === "submitted" && (
+            <div>
+              <MarkReviewedButton organizerId={organizer.id} />
+            </div>
+          )}
+        </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="font-medium text-ink">Messages</h2>
-        <MessageThread
-          organizerId={organizer.id}
-          initialMessages={initialMessages}
-          currentProfileId={profile.id}
-        />
+      {(organizer.status === "submitted" || organizer.status === "reviewed") && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="font-semibold text-slate-950">Review actions</h2>
+          <p className="mt-1 text-sm text-slate-500">Approve the organizer or ask the client to correct specific information.</p>
+          <div className="mt-4">
+            <RequestChanges organizerId={id} />
+          </div>
+        </section>
+      )}
+
+      {organizer.change_request_reason && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-sm font-semibold text-amber-900">Last correction request</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-900/80">{organizer.change_request_reason}</p>
+        </section>
+      )}
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h2 className="font-semibold text-slate-950">Client responses</h2>
+          <p className="mt-1 text-sm text-slate-500">Review answers and uploaded files submitted through this organizer.</p>
+        </div>
+
+        <div className="divide-y divide-slate-100">
+          {(items ?? []).map((item) => {
+            const docs = documentsByItem.get(item.id) ?? [];
+            return (
+              <div key={item.id} className="px-5 py-5">
+                {item.section_title && (
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{item.section_title}</p>
+                )}
+                <p className="text-sm font-semibold text-slate-900">{item.prompt}</p>
+                {item.help_text && <p className="mt-1 text-xs leading-5 text-slate-500">{item.help_text}</p>}
+
+                <div className="mt-3 rounded-xl bg-slate-50 px-4 py-3">
+                  {item.response_type === "file" ? (
+                    docs.length > 0 ? (
+                      <ul className="flex flex-col gap-2">
+                        {docs.map((doc) => (
+                          <li key={doc.id} className="text-sm">
+                            {doc.url ? (
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-semibold text-blue-600 hover:text-blue-700"
+                              >
+                                {doc.file_name} ↗
+                              </a>
+                            ) : (
+                              <span className="text-slate-700">{doc.file_name}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-slate-500">No file uploaded</p>
+                    )
+                  ) : (
+                    <p className="whitespace-pre-wrap text-sm text-slate-700">
+                      {String(responseByItem.get(item.id) ?? "No response")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="font-semibold text-slate-950">Messages</h2>
+        <p className="mt-1 text-sm text-slate-500">Keep questions and follow-up communication attached to this organizer.</p>
+        <div className="mt-5">
+          <MessageThread
+            organizerId={organizer.id}
+            initialMessages={initialMessages}
+            currentProfileId={profile.id}
+          />
+        </div>
       </section>
     </div>
   );
