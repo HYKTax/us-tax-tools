@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth";
+import { hasStaffPermission } from "@/lib/staff-permissions";
 
 type ClientRow = {
   id: string;
@@ -16,6 +18,8 @@ function statusClasses(status: string) {
 }
 
 export default async function ClientsPage() {
+  const profile = await getCurrentProfile();
+  const canManageClients = Boolean(profile && hasStaffPermission(profile, "clients.manage"));
   const supabase = await createClient();
   const { data: clients, error } = await supabase
     .from("clients")
@@ -34,12 +38,14 @@ export default async function ClientsPage() {
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Clients</h1>
           <p className="mt-2 text-slate-500">Manage portal access, organizers, documents, and client activity.</p>
         </div>
-        <Link
-          href="/dashboard/clients/new"
-          className="inline-flex w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          + Add client
-        </Link>
+        {canManageClients && (
+          <Link
+            href="/dashboard/clients/new"
+            className="inline-flex w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            + Add client
+          </Link>
+        )}
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
@@ -67,9 +73,13 @@ export default async function ClientsPage() {
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
           <h2 className="font-semibold text-slate-900">No clients yet</h2>
           <p className="mt-2 text-sm text-slate-500">Add your first client to send a secure portal invitation and organizer.</p>
-          <Link href="/dashboard/clients/new" className="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
-            Add first client
-          </Link>
+          {canManageClients ? (
+            <Link href="/dashboard/clients/new" className="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+              Add first client
+            </Link>
+          ) : (
+            <p className="mt-4 text-xs text-slate-400">Manager, Preparer, or Firm Admin access is required to create clients.</p>
+          )}
         </div>
       )}
 
