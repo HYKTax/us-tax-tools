@@ -31,10 +31,10 @@ test('database authorization and organizer lifecycle', async () => {
       alter table auth.users disable trigger on_auth_user_created;
       insert into firms(id,name) values ('${id(1)}','A'),('${id(2)}','B');
       insert into auth.users(id,email) values ('${id(10)}','staff@a.test'),('${id(11)}','client@a.test'),('${id(12)}','client@b.test');
-      insert into profiles(id,firm_id,role,full_name,email) values
-        ('${id(10)}','${id(1)}','firm_staff','Staff','staff@a.test'),
-        ('${id(11)}','${id(1)}','client','Client A','client@a.test'),
-        ('${id(12)}','${id(2)}','client','Client B','client@b.test');
+      insert into profiles(id,firm_id,role,full_name,email,staff_role) values
+        ('${id(10)}','${id(1)}','firm_staff','Staff','staff@a.test','manager'),
+        ('${id(11)}','${id(1)}','client','Client A','client@a.test',null),
+        ('${id(12)}','${id(2)}','client','Client B','client@b.test',null);
       insert into clients(id,firm_id,profile_id,primary_contact_name,email,created_by) values
         ('${id(20)}','${id(1)}','${id(11)}','A','client@a.test','${id(10)}'),
         ('${id(21)}','${id(2)}','${id(12)}','B','client@b.test','${id(12)}');
