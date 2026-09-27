@@ -31,6 +31,10 @@ export function DocumentReviewActions({
   extractionReviewed,
   acceptedFieldCount,
   aiConfigured,
+  canManageDocuments,
+  canRunAi,
+  canReviewDocuments,
+  canApproveReturnData,
 }: {
   documentId: string;
   currentReturnJobId: string | null;
@@ -40,6 +44,10 @@ export function DocumentReviewActions({
   extractionReviewed: boolean;
   acceptedFieldCount: number;
   aiConfigured: boolean;
+  canManageDocuments: boolean;
+  canRunAi: boolean;
+  canReviewDocuments: boolean;
+  canApproveReturnData: boolean;
 }) {
   const [returnJobId, setReturnJobId] = useState(currentReturnJobId ?? "");
   const [pending, startTransition] = useTransition();
@@ -70,6 +78,7 @@ export function DocumentReviewActions({
           <select
             value={returnJobId}
             onChange={(event) => setReturnJobId(event.target.value)}
+            disabled={pending || !canManageDocuments}
             className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           >
             <option value="">Not linked to a return</option>
@@ -81,7 +90,7 @@ export function DocumentReviewActions({
           </select>
           <button
             type="button"
-            disabled={pending}
+            disabled={pending || !canManageDocuments}
             onClick={() =>
               run(
                 () => linkDocumentToReturn(documentId, returnJobId || null),
@@ -101,16 +110,20 @@ export function DocumentReviewActions({
           Extraction is a draft for human review. It does not calculate a tax return or replace source-document verification.
         </p>
 
-        {!aiConfigured && (
+        {!canRunAi ? (
+          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            Your role can view extraction results but cannot run AI extraction.
+          </p>
+        ) : !aiConfigured ? (
           <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
             AI extraction is disabled until OPENAI_API_KEY is added to the Vercel project.
           </p>
-        )}
+        ) : null}
 
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={pending || !aiConfigured}
+            disabled={pending || !aiConfigured || !canRunAi}
             onClick={() =>
               run(
                 () => runDocumentExtraction(documentId),
@@ -122,7 +135,7 @@ export function DocumentReviewActions({
             {pending ? "Working…" : extractionCompleted ? "Re-run extraction" : "Extract with AI"}
           </button>
 
-          {extractionCompleted && !extractionReviewed && (
+          {extractionCompleted && !extractionReviewed && canReviewDocuments && (
             <button
               type="button"
               disabled={pending}
@@ -145,7 +158,7 @@ export function DocumentReviewActions({
         <p className="mt-1 text-xs leading-5 text-slate-500">
           Mark the underlying source document reviewed after checking it against the extracted data and return work.
         </p>
-        {!documentReviewed ? (
+        {!documentReviewed && canReviewDocuments ? (
           <button
             type="button"
             disabled={pending}
@@ -159,10 +172,14 @@ export function DocumentReviewActions({
           >
             Mark document reviewed
           </button>
-        ) : (
+        ) : documentReviewed ? (
           <span className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
             ✓ Document reviewed
           </span>
+        ) : (
+          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            Reviewer or Manager approval is required to mark this source document reviewed.
+          </p>
         )}
       </div>
 
@@ -181,10 +198,12 @@ export function DocumentReviewActions({
           )}
         </div>
 
-        {!canAccept && (
+        {(!canAccept || !canApproveReturnData) && (
           <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            {!currentReturnJobId
-              ? "Link this document to a tax return first."
+            {!canApproveReturnData
+              ? "Reviewer or Manager approval is required before extracted data can enter the trusted return layer."
+              : !currentReturnJobId
+                ? "Link this document to a tax return first."
               : !extractionCompleted
                 ? "Run AI extraction first."
                 : !extractionReviewed
@@ -195,7 +214,7 @@ export function DocumentReviewActions({
 
         <button
           type="button"
-          disabled={pending || !canAccept}
+          disabled={pending || !canAccept || !canApproveReturnData}
           onClick={() =>
             run(
               () => acceptExtractionToReturn(documentId),
