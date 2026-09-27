@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { withSignedUrls } from "@/lib/documents";
 import { DocumentReviewActions } from "../document-review-actions";
+import { getCurrentProfile } from "@/lib/auth";
+import { hasStaffPermission } from "@/lib/staff-permissions";
 
 type ExtractedField = {
   name: string;
@@ -30,6 +32,8 @@ export default async function DocumentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const profile = await getCurrentProfile();
+  if (!profile) notFound();
   const supabase = await createClient();
 
   const { data: document, error } = await supabase
@@ -274,6 +278,10 @@ export default async function DocumentDetailPage({
                 extractionReviewed={Boolean(extraction?.reviewed_at)}
                 acceptedFieldCount={acceptedFieldCount ?? 0}
                 aiConfigured={aiConfigured}
+                canManageDocuments={hasStaffPermission(profile, "documents.manage")}
+                canRunAi={hasStaffPermission(profile, "ai.run")}
+                canReviewDocuments={hasStaffPermission(profile, "documents.review")}
+                canApproveReturnData={hasStaffPermission(profile, "returns.review")}
               />
             </div>
           </section>
