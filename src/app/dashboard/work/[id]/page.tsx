@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ReturnJobEditor } from "./return-job-editor";
+import { canBePreparer, canBeReviewer, type StaffOperationalRole } from "@/lib/staff-permissions";
 
 function statusLabel(status: string) {
   return status.replaceAll("_", " ");
@@ -43,7 +44,7 @@ export default async function ReturnJobPage({
       .maybeSingle(),
     supabase
       .from("profiles")
-      .select("id, full_name")
+      .select("id, full_name, staff_role")
       .in("role", ["firm_admin", "firm_staff"])
       .eq("is_active", true)
       .order("full_name"),
@@ -51,6 +52,14 @@ export default async function ReturnJobPage({
 
   if (error) throw new Error("Unable to load this tax return.");
   if (!job) notFound();
+
+  const staffRows = (staff ?? []) as Array<{
+    id: string;
+    full_name: string;
+    staff_role: StaffOperationalRole;
+  }>;
+  const preparers = staffRows.filter((member) => canBePreparer(member.staff_role));
+  const reviewers = staffRows.filter((member) => canBeReviewer(member.staff_role));
 
   const [{ data: documents }, { data: sourceValues }] = await Promise.all([
     supabase
@@ -155,7 +164,8 @@ export default async function ReturnJobPage({
                 extension_status: job.extension_status,
                 efile_status: job.efile_status,
               }}
-              staff={staff ?? []}
+              preparers={preparers}
+              reviewers={reviewers}
             />
           </div>
         </div>
