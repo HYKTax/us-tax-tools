@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { hasStaffPermission } from "@/lib/staff-permissions";
 
 type ActionResult = { error?: string; success?: boolean; message?: string };
 
@@ -71,7 +72,9 @@ function extractionSchema() {
 
 export async function runDocumentExtraction(documentId: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "ai.run")) {
+    return { error: "Your role cannot run AI extraction." };
+  }
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -286,7 +289,9 @@ export async function runDocumentExtraction(documentId: string): Promise<ActionR
 
 export async function markExtractionReviewed(documentId: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "documents.review")) {
+    return { error: "Your role cannot approve extracted document data." };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -319,29 +324,30 @@ export async function markExtractionReviewed(documentId: string): Promise<Action
 
 export async function markDocumentReviewed(documentId: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "documents.review")) {
+    return { error: "Your role cannot review source documents." };
+  }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: document } = await supabase
     .from("documents")
-    .update({ status: "reviewed" })
-    .eq("id", documentId)
     .select("id, tax_return_job_id")
+    .eq("id", documentId)
     .maybeSingle();
 
-  if (error || !data) return { error: error?.message ?? "Document not found." };
+  if (!document) return { error: "Document not found." };
 
-  await supabase.from("audit_log").insert({
-    firm_id: profile.firm_id,
-    actor_id: profile.id,
-    action: "document.reviewed",
-    target_type: "document",
-    target_id: documentId,
+  const { error } = await supabase.rpc("review_document", {
+    p_document_id: documentId,
   });
+
+  if (error) return { error: error.message };
 
   revalidatePath("/dashboard/documents");
   revalidatePath(`/dashboard/documents/${documentId}`);
-  if (data.tax_return_job_id) revalidatePath(`/dashboard/work/${data.tax_return_job_id}`);
+  if (document.tax_return_job_id) {
+    revalidatePath(`/dashboard/work/${document.tax_return_job_id}`);
+  }
   return { success: true };
 }
 
@@ -350,7 +356,9 @@ export async function linkDocumentToReturn(
   taxReturnJobId: string | null
 ): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "documents.manage")) {
+    return { error: "Your role cannot link source documents." };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -380,7 +388,9 @@ export async function linkDocumentToReturn(
 
 export async function acceptExtractionToReturn(documentId: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "returns.review")) {
+    return { error: "Your role cannot approve extracted data for a return." };
+  }
 
   const supabase = await createClient();
   const { data: document } = await supabase
