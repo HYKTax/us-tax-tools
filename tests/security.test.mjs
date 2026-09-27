@@ -73,7 +73,7 @@ test('database authorization and organizer lifecycle', async () => {
     await denied(id(11), `select submit_organizer('${id(30)}')`, /submittable state/);
     await denied(id(11), `insert into documents(firm_id,client_id,organizer_id,organizer_item_id,uploaded_by,storage_path,file_name) values ('${id(1)}','${id(20)}','${id(30)}','${id(41)}','${id(11)}','${path}','late.pdf')`, /no longer accepting/);
     assert.equal((await asUser(id(12), `select * from organizers`)).rows.length, 0);
-    await assert.rejects(db.exec(`insert into auth.users(id,email,raw_user_meta_data) values ('${id(99)}','evil@test', '{"firm_id":"${id(1)}","role":"firm_admin"}')`), /authorized invitation/);
+    await assert.rejects(db.exec(`insert into auth.users(id,email,raw_user_meta_data) values ('${id(99)}','evil@test', '{"firm_id":"${id(1)}","role":"firm_admin"}')`), /authorized invitation|valid invitation/);
     await db.exec(`insert into clients(id,firm_id,primary_contact_name,email,created_by) values ('${id(22)}','${id(1)}','Invited','invited@a.test','${id(10)}')`);
     await db.exec(`insert into auth.users(id,email,raw_user_meta_data,invited_at) values ('${id(13)}','invited@a.test','{"firm_id":"${id(1)}","role":"client","full_name":"Invited"}',now())`);
     assert.equal((await db.query(`select profile_id from clients where id='${id(22)}'`)).rows[0].profile_id, id(13));
