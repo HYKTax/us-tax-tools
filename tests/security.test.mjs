@@ -51,7 +51,7 @@ test('database authorization and organizer lifecycle', async () => {
       try { return await db.query(sql); } finally { await db.exec('reset role'); }
     }
     const denied = (user, sql, pattern, role) => assert.rejects(asUser(user, sql, role), pattern);
-    await denied(id(11), `update profiles set role='firm_admin' where id='${id(11)}'`, /permission denied/);
+    await denied(id(11), `update profiles set role='firm_admin' where id='${id(11)}'`, /permission denied|display name can be updated directly/);
     await asUser(id(11), `update profiles set full_name='Updated' where id='${id(11)}'`);
     await denied(id(10), `select save_organizer_response('${id(40)}','"x"')`, /Not authorized/);
     await denied(id(12), `select submit_organizer('${id(30)}')`, /Not authorized/);
