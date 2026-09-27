@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Brand } from "@/components/brand";
 
-const navItems = [
+const baseNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: "grid" },
   { href: "/dashboard/work", label: "Work / Returns", icon: "work" },
   { href: "/dashboard/clients", label: "Clients", icon: "users" },
@@ -9,6 +9,8 @@ const navItems = [
   { href: "/dashboard/messages", label: "Messages", icon: "message" },
   { href: "/dashboard/templates", label: "Organizer templates", icon: "clipboard" },
 ] as const;
+
+const adminNavItem = { href: "/dashboard/team", label: "Team", icon: "users" } as const;
 
 function Icon({ name }: { name: string }) {
   const common = "h-4 w-4";
@@ -36,7 +38,9 @@ function Icon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
 }
 
-export function StaffSidebar() {
+export function StaffSidebar({ role }: { role: "firm_admin" | "firm_staff" }) {
+  const navItems = role === "firm_admin" ? [...baseNavItems, adminNavItem] : baseNavItems;
+
   return (
     <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-slate-950 lg:flex lg:min-h-screen lg:flex-col">
       <div className="border-b border-white/10 px-5 py-5">
