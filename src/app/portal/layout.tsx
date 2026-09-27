@@ -13,6 +13,7 @@ export default async function PortalLayout({
   const profile = await getCurrentProfile();
 
   if (!profile) redirect("/login");
+  if (!profile.is_active) redirect("/auth/access-disabled");
   if (profile.role !== "client") redirect("/dashboard");
 
   return (
