@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import {
+  staffRoleLabel,
+  type StaffOperationalRole,
+} from "@/lib/staff-permissions";
 import { InviteStaffForm } from "./invite-staff-form";
 import {
   PendingInvitationControls,
@@ -12,6 +16,7 @@ type StaffRow = {
   full_name: string;
   email: string;
   role: "firm_admin" | "firm_staff";
+  staff_role: StaffOperationalRole;
   is_active: boolean;
   created_at: string;
 };
@@ -21,6 +26,7 @@ type InvitationRow = {
   email: string;
   full_name: string;
   role: "firm_admin" | "firm_staff";
+  staff_role: StaffOperationalRole;
   status: "invited" | "accepted" | "revoked";
   auth_user_id: string | null;
   invited_at: string;
@@ -28,15 +34,24 @@ type InvitationRow = {
   revoked_at: string | null;
 };
 
-function roleLabel(role: string) {
-  return role === "firm_admin" ? "Firm admin" : "Staff";
-}
-
 function statusBadge(active: boolean, invitationStatus?: string | null) {
   if (!active) return { label: "Disabled", classes: "bg-slate-100 text-slate-600" };
   if (invitationStatus === "invited") return { label: "Invited", classes: "bg-amber-50 text-amber-700" };
   return { label: "Active", classes: "bg-emerald-50 text-emerald-700" };
 }
+
+const permissionRows = [
+  { label: "Manage team / roles", admin: true, manager: false, reviewer: false, preparer: false },
+  { label: "Create & manage clients", admin: true, manager: true, reviewer: false, preparer: true },
+  { label: "Send / edit organizers", admin: true, manager: true, reviewer: false, preparer: true },
+  { label: "Review organizers", admin: true, manager: true, reviewer: true, preparer: false },
+  { label: "Upload / link documents", admin: true, manager: true, reviewer: false, preparer: true },
+  { label: "Run AI extraction", admin: true, manager: true, reviewer: true, preparer: true },
+  { label: "Approve AI / document data", admin: true, manager: true, reviewer: true, preparer: false },
+  { label: "Manage tax-return workflow", admin: true, manager: true, reviewer: true, preparer: true },
+  { label: "Approve return source data", admin: true, manager: true, reviewer: true, preparer: false },
+  { label: "Manage organizer templates", admin: true, manager: true, reviewer: false, preparer: false },
+] as const;
 
 export default async function TeamPage() {
   const profile = await getCurrentProfile();
@@ -53,13 +68,13 @@ export default async function TeamPage() {
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, email, role, is_active, created_at")
+      .select("id, full_name, email, role, staff_role, is_active, created_at")
       .eq("firm_id", profile.firm_id)
       .in("role", ["firm_admin", "firm_staff"])
       .order("full_name"),
     supabase
       .from("staff_invitations")
-      .select("id, email, full_name, role, status, auth_user_id, invited_at, accepted_at, revoked_at")
+      .select("id, email, full_name, role, staff_role, status, auth_user_id, invited_at, accepted_at, revoked_at")
       .eq("firm_id", profile.firm_id)
       .order("invited_at", { ascending: false }),
     supabase
@@ -93,7 +108,7 @@ export default async function TeamPage() {
   );
   const activeCount = staffRows.filter((member) => member.is_active).length;
   const adminCount = staffRows.filter(
-    (member) => member.is_active && member.role === "firm_admin"
+    (member) => member.is_active && member.staff_role === "admin"
   ).length;
   const invitedCount = invitationRows.filter((invitation) => invitation.status === "invited").length;
 
@@ -101,9 +116,9 @@ export default async function TeamPage() {
     <div className="flex flex-col gap-7">
       <section>
         <p className="text-sm font-semibold text-blue-600">Firm administration</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Team</h1>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Team & permissions</h1>
         <p className="mt-2 text-slate-500">
-          Invite staff, control firm access, and manage who can prepare or review returns.
+          Invite staff, assign operational roles, and control who can prepare, review, approve, and administer firm work.
         </p>
       </section>
 
@@ -133,7 +148,7 @@ export default async function TeamPage() {
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="font-semibold text-slate-950">Team members</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Staff appear in preparer and reviewer dropdowns while their access is active.
+              Preparer and reviewer eligibility now follows each person&apos;s operational role.
             </p>
           </div>
 
@@ -163,8 +178,8 @@ export default async function TeamPage() {
                         </div>
                         <p className="mt-1 text-sm text-slate-500">{member.email}</p>
                         <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                          <span className="rounded-lg bg-slate-50 px-2.5 py-1.5">
-                            {roleLabel(member.role)}
+                          <span className="rounded-lg bg-blue-50 px-2.5 py-1.5 font-semibold text-blue-700">
+                            {staffRoleLabel(member.staff_role)}
                           </span>
                           <span className="rounded-lg bg-slate-50 px-2.5 py-1.5">
                             {preparationCounts.get(member.id) ?? 0} open preparation assignment{(preparationCounts.get(member.id) ?? 0) === 1 ? "" : "s"}
@@ -187,7 +202,7 @@ export default async function TeamPage() {
 
                       <StaffMemberControls
                         profileId={member.id}
-                        initialRole={member.role}
+                        initialStaffRole={member.staff_role}
                         initialActive={member.is_active}
                         isCurrentUser={isCurrentUser}
                         invitationId={invitation?.id ?? null}
@@ -204,12 +219,48 @@ export default async function TeamPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="font-semibold text-slate-950">Invite staff</h2>
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            New team members receive a secure email invitation and join this firm automatically.
+            New team members receive a secure passwordless invitation with their role already attached.
           </p>
           <div className="mt-5">
             <InviteStaffForm />
           </div>
         </section>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h2 className="font-semibold text-slate-950">Role permissions</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            These permissions are enforced by Supabase policies and protected RPCs, not only by the interface.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-5 py-3">Capability</th>
+                <th className="px-5 py-3">Admin</th>
+                <th className="px-5 py-3">Manager</th>
+                <th className="px-5 py-3">Reviewer</th>
+                <th className="px-5 py-3">Preparer</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {permissionRows.map((row) => (
+                <tr key={row.label}>
+                  <td className="px-5 py-3 font-medium text-slate-800">{row.label}</td>
+                  {(["admin", "manager", "reviewer", "preparer"] as const).map((role) => (
+                    <td key={role} className="px-5 py-3">
+                      <span className={row[role] ? "font-semibold text-emerald-700" : "text-slate-300"}>
+                        {row[role] ? "✓" : "—"}
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {pendingInvitations.length > 0 && (
@@ -226,7 +277,7 @@ export default async function TeamPage() {
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{invitation.full_name}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {invitation.email} · {roleLabel(invitation.role)} · invited {new Date(invitation.invited_at).toLocaleString()}
+                    {invitation.email} · {staffRoleLabel(invitation.staff_role)} · invited {new Date(invitation.invited_at).toLocaleString()}
                   </p>
                 </div>
                 <PendingInvitationControls invitationId={invitation.id} />
@@ -237,9 +288,9 @@ export default async function TeamPage() {
       )}
 
       <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
-        <h2 className="font-semibold text-slate-950">Permission model</h2>
+        <h2 className="font-semibold text-slate-950">Separation of duties</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Firm admins manage team access and roles. Firm staff can work with clients, organizers, documents, messages, and tax returns, but cannot add administrators or change another staff member&apos;s access.
+          Preparers can collect documents, run extraction, and prepare returns, but they cannot approve AI-extracted tax data. Reviewers and Managers can perform the human-review and approval steps. Only Firm Admins can manage team access.
         </p>
       </section>
     </div>
