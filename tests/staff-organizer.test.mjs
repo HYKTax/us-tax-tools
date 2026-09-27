@@ -32,6 +32,7 @@ function page({ missing = false, error = null } = {}) {
       if (name === '@/lib/auth') return { getCurrentProfile: async () => ({ id: 'staff' }) };
       if (name === '@/lib/supabase/server') return { createClient: async () => client };
       if (name === '@/lib/documents') return { withSignedUrls: async (_, docs) => docs };
+      if (name === '@/lib/staff-permissions') return { hasStaffPermission: () => true };
       if (name === '@/components/message-thread') return { MessageThread: () => null };
       if (name === './request-changes') return { RequestChanges: () => null };
       if (name === './mark-reviewed-button') return { MarkReviewedButton: () => null };
