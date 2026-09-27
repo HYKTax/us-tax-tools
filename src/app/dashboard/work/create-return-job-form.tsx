@@ -8,11 +8,13 @@ type OrganizerOption = { id: string; title: string; tax_year: number; status: st
 
 export function CreateReturnJobForm({
   clientId,
-  staff,
+  preparers,
+  reviewers,
   organizers,
 }: {
   clientId: string;
-  staff: StaffOption[];
+  preparers: StaffOption[];
+  reviewers: StaffOption[];
   organizers: OrganizerOption[];
 }) {
   const currentYear = new Date().getFullYear();
@@ -91,7 +93,7 @@ export function CreateReturnJobForm({
           Preparer
           <select value={preparerId} onChange={(event) => setPreparerId(event.target.value)} className={fieldClass}>
             <option value="">Unassigned</option>
-            {staff.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
+            {preparers.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
           </select>
         </label>
 
@@ -99,7 +101,7 @@ export function CreateReturnJobForm({
           Reviewer
           <select value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} className={fieldClass}>
             <option value="">Unassigned</option>
-            {staff.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
+            {reviewers.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
           </select>
         </label>
       </div>
