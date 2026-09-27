@@ -47,6 +47,8 @@ export default async function DashboardLayout({
           <nav className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 py-2 text-sm lg:hidden">
             <Link href="/dashboard" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Dashboard</Link>
             <Link href="/dashboard/clients" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Clients</Link>
+            <Link href="/dashboard/documents" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Documents</Link>
+            <Link href="/dashboard/messages" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Messages</Link>
             <Link href="/dashboard/templates" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Templates</Link>
           </nav>
         </header>
