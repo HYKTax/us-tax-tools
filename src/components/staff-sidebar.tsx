@@ -4,13 +4,30 @@ import { Brand } from "@/components/brand";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "grid" },
   { href: "/dashboard/clients", label: "Clients", icon: "users" },
+  { href: "/dashboard/documents", label: "Documents", icon: "folder" },
+  { href: "/dashboard/messages", label: "Messages", icon: "message" },
   { href: "/dashboard/templates", label: "Organizer templates", icon: "clipboard" },
 ];
 
 function Icon({ name }: { name: string }) {
   const common = "h-4 w-4";
-  if (name === "users") return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
-  if (name === "clipboard") return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 9h6M9 13h6M9 17h4"/></svg>;
+
+  if (name === "users") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+  }
+
+  if (name === "clipboard") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 9h6M9 13h6M9 17h4"/></svg>;
+  }
+
+  if (name === "folder") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H9l2 2h7.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/></svg>;
+  }
+
+  if (name === "message") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>;
+  }
+
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
 }
 
@@ -36,9 +53,8 @@ export function StaffSidebar() {
           Coming next
         </div>
         <div className="mt-2 flex flex-col gap-1 text-sm text-slate-500">
-          <span className="px-3 py-2">Documents</span>
-          <span className="px-3 py-2">Messages</span>
           <span className="px-3 py-2">Work / Returns</span>
+          <span className="px-3 py-2">AI document extraction</span>
         </div>
       </nav>
       <div className="border-t border-white/10 px-5 py-4 text-xs text-slate-500">
