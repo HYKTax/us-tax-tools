@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth";
 
 type OrganizerRow = {
   id: string;
@@ -8,44 +9,124 @@ type OrganizerRow = {
   status: string;
 };
 
+function progressFor(status: string) {
+  if (status === "reviewed") return 100;
+  if (status === "submitted") return 90;
+  if (status === "in_progress") return 55;
+  if (status === "sent") return 15;
+  return 0;
+}
+
+function actionText(status: string) {
+  if (status === "in_progress") return "Continue organizer";
+  if (status === "sent") return "Start organizer";
+  if (status === "submitted") return "View submission";
+  if (status === "reviewed") return "View organizer";
+  return "Open organizer";
+}
+
 export default async function PortalPage() {
   const supabase = await createClient();
-  const { data: organizers, error } = await supabase
-    .from("organizers")
-    .select("id, title, tax_year, status")
-    .order("tax_year", { ascending: false });
+  const profile = await getCurrentProfile();
+
+  const [{ data: organizers, error }, { data: documents }] = await Promise.all([
+    supabase.from("organizers").select("id, title, tax_year, status").order("tax_year", { ascending: false }),
+    supabase.from("documents").select("id, file_name, created_at").order("created_at", { ascending: false }).limit(5),
+  ]);
+
+  const rows = (organizers ?? []) as OrganizerRow[];
+  const openItems = rows.filter((row) => ["sent", "in_progress"].includes(row.status));
+  const firstName = profile?.full_name?.split(" ")[0] || "there";
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold text-ink">Your organizers</h1>
-
-      {error && (
-        <p className="text-sm text-red-600">Couldn&apos;t load your organizers: {error.message}</p>
-      )}
-
-      {!error && (!organizers || organizers.length === 0) && (
-        <p className="rounded-md border border-hairline bg-white px-4 py-6 text-center text-sm text-ink-muted">
-          Nothing here yet. Your organizer will show up once your firm sends one.
+    <div className="flex flex-col gap-8">
+      <section>
+        <p className="text-sm font-semibold text-blue-600">Your secure client portal</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Welcome, {firstName}.</h1>
+        <p className="mt-2 text-slate-500">
+          {openItems.length > 0
+            ? `You have ${openItems.length} item${openItems.length === 1 ? "" : "s"} that need your attention.`
+            : "You’re all caught up. We’ll show new requests here when your tax professional sends them."}
         </p>
+      </section>
+
+      {error && <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">Couldn&apos;t load your organizers: {error.message}</p>}
+
+      {openItems.length > 0 && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          {openItems.map((organizer) => {
+            const progress = progressFor(organizer.status);
+            return (
+              <Link key={organizer.id} href={`/portal/organizers/${organizer.id}`} className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold capitalize text-amber-700">
+                      Action needed
+                    </span>
+                    <h2 className="mt-4 text-lg font-semibold text-slate-950">{organizer.title}</h2>
+                    <p className="mt-1 text-sm text-slate-500">Tax year {organizer.tax_year}</p>
+                  </div>
+                  <span className="text-sm font-semibold text-blue-600">{actionText(organizer.status)} →</span>
+                </div>
+                <div className="mt-5">
+                  <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                    <span className="capitalize">{organizer.status.replace("_", " ")}</span>
+                    <span>{progress}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-blue-600" style={{ width: `${progress}%` }} />
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </section>
       )}
 
-      {organizers && organizers.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {(organizers as OrganizerRow[]).map((o) => (
-            <li key={o.id}>
-              <Link
-                href={`/portal/organizers/${o.id}`}
-                className="flex items-center justify-between rounded-md border border-hairline bg-white px-4 py-3 hover:border-ledger"
-              >
-                <span className="text-ink">{o.title}</span>
-                <span className="text-sm capitalize text-ink-muted">
-                  {o.tax_year} · {o.status.replace("_", " ")}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <section className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="font-semibold text-slate-950">Your organizers</h2>
+            <p className="mt-1 text-sm text-slate-500">Tax questionnaires and document requests from your firm</p>
+          </div>
+          {!rows.length && !error ? (
+            <p className="px-5 py-10 text-center text-sm text-slate-500">Nothing here yet. Your organizer will appear once your firm sends one.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {rows.map((organizer) => (
+                <Link key={organizer.id} href={`/portal/organizers/${organizer.id}`} className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900">{organizer.title}</p>
+                    <p className="mt-1 text-xs text-slate-500">Tax year {organizer.tax_year}</p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-600">
+                    {organizer.status.replace("_", " ")}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="font-semibold text-slate-950">Recent documents</h2>
+            <p className="mt-1 text-sm text-slate-500">Files recently shared through your portal</p>
+          </div>
+          {!documents?.length ? (
+            <p className="px-5 py-10 text-center text-sm text-slate-500">No documents uploaded yet.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {documents.map((document) => (
+                <div key={document.id} className="px-5 py-4">
+                  <p className="truncate text-sm font-medium text-slate-900">{document.file_name}</p>
+                  <p className="mt-1 text-xs text-slate-500">{new Date(document.created_at).toLocaleDateString()}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
