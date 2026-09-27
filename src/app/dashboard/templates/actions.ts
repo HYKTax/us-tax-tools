@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { hasStaffPermission } from "@/lib/staff-permissions";
 
 export type TemplateItemInput = {
   prompt: string;
@@ -21,8 +22,8 @@ export async function createTemplate(input: {
   items: TemplateItemInput[];
 }): Promise<Result> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") {
-    return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "templates.manage")) {
+    return { error: "Your role cannot manage organizer templates." };
   }
 
   const name = input.name.trim();
