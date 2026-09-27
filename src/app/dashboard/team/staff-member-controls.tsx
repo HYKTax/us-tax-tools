@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { staffRoleOptions, type StaffOperationalRole } from "@/lib/staff-permissions";
 import { useEmailCooldown } from "@/lib/use-email-cooldown";
 import {
   revokeStaffInvitation,
@@ -10,20 +11,20 @@ import {
 
 export function StaffMemberControls({
   profileId,
-  initialRole,
+  initialStaffRole,
   initialActive,
   isCurrentUser,
   invitationId,
   invitationStatus,
 }: {
   profileId: string;
-  initialRole: "firm_admin" | "firm_staff";
+  initialStaffRole: StaffOperationalRole;
   initialActive: boolean;
   isCurrentUser: boolean;
   invitationId: string | null;
   invitationStatus: string | null;
 }) {
-  const [role, setRole] = useState(initialRole);
+  const [staffRole, setStaffRole] = useState(initialStaffRole);
   const [active, setActive] = useState(initialActive);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -34,7 +35,7 @@ export function StaffMemberControls({
     startTransition(async () => {
       const result = await updateStaffMember({
         profileId,
-        role,
+        staffRole,
         isActive: nextActive,
       });
       if (result.success) setActive(nextActive);
@@ -62,16 +63,19 @@ export function StaffMemberControls({
   };
 
   return (
-    <div className="flex min-w-[260px] flex-col gap-2">
+    <div className="flex min-w-[300px] flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <select
-          value={role}
-          onChange={(event) => setRole(event.target.value as "firm_admin" | "firm_staff")}
+          value={staffRole}
+          onChange={(event) => setStaffRole(event.target.value as StaffOperationalRole)}
           disabled={pending || isCurrentUser}
           className="rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-400"
         >
-          <option value="firm_staff">Staff</option>
-          <option value="firm_admin">Firm admin</option>
+          {staffRoleOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
 
         {!isCurrentUser && (
@@ -110,7 +114,11 @@ export function StaffMemberControls({
             onClick={sendAccess}
             className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            {seconds > 0 ? "Retry in " + seconds + "s" : invitationStatus === "invited" ? "Resend access link" : "Send access link"}
+            {seconds > 0
+              ? "Retry in " + seconds + "s"
+              : invitationStatus === "invited"
+                ? "Resend access link"
+                : "Send access link"}
           </button>
         )}
 
@@ -126,7 +134,11 @@ export function StaffMemberControls({
         )}
       </div>
 
-      {isCurrentUser && <p className="text-[11px] text-slate-400">Your own administrator access is protected.</p>}
+      {isCurrentUser && (
+        <p className="text-[11px] text-slate-400">
+          Your own administrator access is protected.
+        </p>
+      )}
       {message && <p className="text-xs text-slate-500">{message}</p>}
     </div>
   );
