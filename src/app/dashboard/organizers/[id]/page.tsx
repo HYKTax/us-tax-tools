@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MessageThread } from "@/components/message-thread";
 import type { PostedMessage } from "@/lib/actions/messages";
 import { MarkReviewedButton } from "./mark-reviewed-button";
+import { hasStaffPermission } from "@/lib/staff-permissions";
 
 function statusClasses(status: string) {
   if (status === "reviewed") return "bg-emerald-50 text-emerald-700";
@@ -36,6 +37,7 @@ export default async function StaffOrganizerPage({
   }
 
   if (!organizer || !profile) notFound();
+  const canReviewOrganizer = hasStaffPermission(profile, "organizers.review");
 
   const { data: items } = await supabase
     .from("organizer_items")
@@ -110,7 +112,7 @@ export default async function StaffOrganizerPage({
             </p>
           </div>
 
-          {organizer.status === "submitted" && (
+          {organizer.status === "submitted" && canReviewOrganizer && (
             <div>
               <MarkReviewedButton organizerId={organizer.id} />
             </div>
@@ -118,13 +120,22 @@ export default async function StaffOrganizerPage({
         </div>
       </section>
 
-      {(organizer.status === "submitted" || organizer.status === "reviewed") && (
+      {(organizer.status === "submitted" || organizer.status === "reviewed") && canReviewOrganizer && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="font-semibold text-slate-950">Review actions</h2>
           <p className="mt-1 text-sm text-slate-500">Approve the organizer or ask the client to correct specific information.</p>
           <div className="mt-4">
             <RequestChanges organizerId={id} />
           </div>
+        </section>
+      )}
+
+      {(organizer.status === "submitted" || organizer.status === "reviewed") && !canReviewOrganizer && (
+        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <p className="text-sm font-semibold text-slate-800">Read-only review view</p>
+          <p className="mt-1 text-sm text-slate-500">
+            A Reviewer, Manager, or Firm Admin must approve this organizer or request corrections.
+          </p>
         </section>
       )}
 
