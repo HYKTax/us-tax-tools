@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { InviteButton, SendOrganizerForm } from "./client-actions";
 import { CreateReturnJobForm } from "@/app/dashboard/work/create-return-job-form";
-import { canBePreparer, canBeReviewer, type StaffOperationalRole } from "@/lib/staff-permissions";
+import { canBePreparer, canBeReviewer, hasStaffPermission, type StaffOperationalRole } from "@/lib/staff-permissions";
+import { getCurrentProfile } from "@/lib/auth";
 
 type OrganizerRow = {
   id: string;
@@ -48,6 +49,10 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const profile = await getCurrentProfile();
+  if (!profile) notFound();
+  const canManageClients = hasStaffPermission(profile, "clients.manage");
+  const canManageOrganizers = hasStaffPermission(profile, "organizers.manage");
   const supabase = await createClient();
 
   const { data: client } = await supabase
@@ -116,7 +121,13 @@ export default async function ClientDetailPage({
             </div>
             <p className="mt-2 text-slate-500">{client.email} · <span className="capitalize">{client.client_type}</span></p>
           </div>
-          <InviteButton clientId={client.id} status={client.status} />
+          {canManageClients ? (
+            <InviteButton clientId={client.id} status={client.status} />
+          ) : (
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+              Client access: read only
+            </span>
+          )}
         </div>
       </section>
 
@@ -219,7 +230,13 @@ export default async function ClientDetailPage({
           <h2 className="font-semibold text-slate-950">Send an organizer</h2>
           <p className="mt-1 text-sm text-slate-500">Choose a reusable template and send it securely to this client.</p>
           <div className="mt-5">
-            <SendOrganizerForm clientId={client.id} templates={templates ?? []} />
+            {canManageOrganizers ? (
+              <SendOrganizerForm clientId={client.id} templates={templates ?? []} />
+            ) : (
+              <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                Your role can review existing organizers but cannot send or modify organizer requests.
+              </div>
+            )}
           </div>
         </div>
       </section>
