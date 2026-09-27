@@ -77,8 +77,8 @@ export async function sendOrganizerToClient(input: {
   title: string;
 }): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") {
-    return { error: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "organizers.manage")) {
+    return { error: "Your role cannot send organizers." };
   }
 
   const supabase = await createClient();
