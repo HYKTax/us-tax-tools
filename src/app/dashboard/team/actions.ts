@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { authEmailFailure } from "@/lib/auth-email-errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeStaffRole, type StaffOperationalRole } from "@/lib/staff-permissions";
 
 type TeamActionResult = {
   error?: string;
@@ -20,7 +21,7 @@ function normalizeEmail(value: string) {
 export async function inviteStaff(input: {
   fullName: string;
   email: string;
-  role: "firm_admin" | "firm_staff";
+  staffRole: StaffOperationalRole;
 }): Promise<TeamActionResult> {
   const profile = await getCurrentProfile();
   if (!profile || profile.role !== "firm_admin" || !profile.is_active) {
@@ -29,11 +30,12 @@ export async function inviteStaff(input: {
 
   const fullName = input.fullName.trim();
   const email = normalizeEmail(input.email);
-  const role = input.role;
+  const staffRole = normalizeStaffRole(input.staffRole);
+  const role = staffRole === "admin" ? "firm_admin" : "firm_staff";
 
   if (!fullName) return { error: "Enter the staff member's name." };
   if (!email || !email.includes("@")) return { error: "Enter a valid email address." };
-  if (!["firm_admin", "firm_staff"].includes(role)) return { error: "Choose a valid staff role." };
+  if (!staffRole) return { error: "Choose a valid staff role." };
 
   const supabase = await createClient();
 
@@ -67,6 +69,7 @@ export async function inviteStaff(input: {
       .update({
         full_name: fullName,
         role,
+        staff_role: staffRole,
         status: "invited",
         invited_by: profile.id,
         invited_at: new Date().toISOString(),
@@ -89,6 +92,7 @@ export async function inviteStaff(input: {
         email,
         full_name: fullName,
         role,
+        staff_role: staffRole,
         invited_by: profile.id,
       })
       .select("id")
@@ -106,6 +110,7 @@ export async function inviteStaff(input: {
     data: {
       firm_id: profile.firm_id,
       role,
+      staff_role: staffRole,
       full_name: fullName,
       staff_invitation_id: invitationId,
     },
@@ -129,7 +134,7 @@ export async function inviteStaff(input: {
     action: "staff.invited",
     target_type: "staff_invitation",
     target_id: invitationId,
-    metadata: { email, role },
+    metadata: { email, role, staff_role: staffRole },
   });
 
   revalidatePath("/dashboard/team");
@@ -201,7 +206,7 @@ export async function sendStaffAccessLink(profileId: string): Promise<TeamAction
 
 export async function updateStaffMember(input: {
   profileId: string;
-  role: "firm_admin" | "firm_staff";
+  staffRole: StaffOperationalRole;
   isActive: boolean;
 }): Promise<TeamActionResult> {
   const profile = await getCurrentProfile();
@@ -209,10 +214,13 @@ export async function updateStaffMember(input: {
     return { error: "Only an active firm administrator can manage staff." };
   }
 
+  const staffRole = normalizeStaffRole(input.staffRole);
+  if (!staffRole) return { error: "Choose a valid staff role." };
+
   const supabase = await createClient();
-  const { error } = await supabase.rpc("admin_update_staff", {
+  const { error } = await supabase.rpc("admin_update_staff_access", {
     p_profile_id: input.profileId,
-    p_role: input.role,
+    p_staff_role: staffRole,
     p_is_active: input.isActive,
   });
 
