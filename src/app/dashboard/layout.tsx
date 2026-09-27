@@ -6,6 +6,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions";
 import { getCurrentProfile } from "@/lib/auth";
+import { staffRoleLabel } from "@/lib/staff-permissions";
 
 export default async function DashboardLayout({
   children,
@@ -30,7 +31,7 @@ export default async function DashboardLayout({
             <nav className="hidden items-center gap-1 text-sm lg:flex">
               <Link href="/dashboard" className="font-semibold text-slate-900">Firm workspace</Link>
               <span className="text-slate-300">/</span>
-              <span className="capitalize text-slate-500">{profile.role.replace("_", " ")}</span>
+              <span className="text-slate-500">{staffRoleLabel(profile.staff_role)}</span>
             </nav>
             <div className="flex items-center gap-2 sm:gap-3">
               <Notifications area="dashboard" emailConfigured={notificationEmailConfigured()} />
