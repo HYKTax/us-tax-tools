@@ -8,7 +8,7 @@ const navItems = [
   { href: "/dashboard/documents", label: "Documents", icon: "folder" },
   { href: "/dashboard/messages", label: "Messages", icon: "message" },
   { href: "/dashboard/templates", label: "Organizer templates", icon: "clipboard" },
-];
+] as const;
 
 function Icon({ name }: { name: string }) {
   const common = "h-4 w-4";
