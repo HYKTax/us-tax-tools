@@ -41,7 +41,7 @@ export async function inviteStaff(input: {
     .from("profiles")
     .select("id, role, is_active")
     .eq("firm_id", profile.firm_id)
-    .eq("email", email)
+    .ilike("email", email)
     .maybeSingle();
 
   if (existingProfile) {
