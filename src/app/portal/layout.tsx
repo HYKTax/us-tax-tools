@@ -1,4 +1,5 @@
 import { Notifications } from "@/components/notifications";
+import { Brand } from "@/components/brand";
 import { notificationEmailConfigured } from "@/lib/email";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions";
@@ -11,30 +12,29 @@ export default async function PortalLayout({
 }) {
   const profile = await getCurrentProfile();
 
-  if (!profile) {
-    redirect("/login");
-  }
-  if (profile.role !== "client") {
-    redirect("/dashboard");
-  }
+  if (!profile) redirect("/login");
+  if (profile.role !== "client") redirect("/dashboard");
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-hairline bg-white">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
-          <span className="font-semibold text-ink">US Tax Tools</span>
-          <div className="flex items-center gap-3 text-sm text-ink-muted">
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <Brand />
+          <div className="flex items-center gap-2 sm:gap-3">
             <Notifications area="portal" emailConfigured={notificationEmailConfigured()} />
-            <span>{profile.full_name}</span>
+            <div className="hidden text-right sm:block">
+              <p className="text-sm font-medium text-slate-900">{profile.full_name}</p>
+              <p className="text-xs text-slate-500">Client portal</p>
+            </div>
             <form action={signOut}>
-              <button className="underline underline-offset-2 hover:text-ink">
+              <button className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900">
                 Sign out
               </button>
             </form>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-2xl px-6 py-8">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-7 sm:px-6 lg:py-10">{children}</main>
     </div>
   );
 }
