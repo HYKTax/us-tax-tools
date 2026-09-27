@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateTaxReturnJob } from "./actions";
+import { updateTaxReturnJob } from "../actions";
 
 type StaffOption = { id: string; full_name: string };
 
