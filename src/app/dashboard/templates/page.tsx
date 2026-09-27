@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth";
+import { hasStaffPermission } from "@/lib/staff-permissions";
 
 export default async function TemplatesPage() {
+  const profile = await getCurrentProfile();
+  const canManageTemplates = Boolean(profile && hasStaffPermission(profile, "templates.manage"));
   const supabase = await createClient();
   const { data: templates, error } = await supabase
     .from("organizer_templates")
@@ -17,12 +21,14 @@ export default async function TemplatesPage() {
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Organizer templates</h1>
           <p className="mt-2 text-slate-500">Create reusable questionnaires and document requests for each return type.</p>
         </div>
-        <Link
-          href="/dashboard/templates/new"
-          className="inline-flex w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          + New template
-        </Link>
+        {canManageTemplates && (
+          <Link
+            href="/dashboard/templates/new"
+            className="inline-flex w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            + New template
+          </Link>
+        )}
       </section>
 
       {error && (
@@ -35,9 +41,13 @@ export default async function TemplatesPage() {
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
           <h2 className="font-semibold text-slate-900">No organizer templates yet</h2>
           <p className="mt-2 text-sm text-slate-500">Create a reusable 1040, business, or custom organizer to start collecting client information.</p>
-          <Link href="/dashboard/templates/new" className="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
-            Create template
-          </Link>
+          {canManageTemplates ? (
+            <Link href="/dashboard/templates/new" className="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+              Create template
+            </Link>
+          ) : (
+            <p className="mt-4 text-xs text-slate-400">Manager or Firm Admin access is required to create templates.</p>
+          )}
         </div>
       )}
 
