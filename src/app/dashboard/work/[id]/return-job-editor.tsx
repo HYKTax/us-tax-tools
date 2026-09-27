@@ -7,7 +7,8 @@ type StaffOption = { id: string; full_name: string };
 
 export function ReturnJobEditor({
   job,
-  staff,
+  preparers,
+  reviewers,
 }: {
   job: {
     id: string;
@@ -20,7 +21,8 @@ export function ReturnJobEditor({
     extension_status: string;
     efile_status: string;
   };
-  staff: StaffOption[];
+  preparers: StaffOption[];
+  reviewers: StaffOption[];
 }) {
   const [status, setStatus] = useState(job.status);
   const [priority, setPriority] = useState(job.priority);
@@ -91,7 +93,7 @@ export function ReturnJobEditor({
           Preparer
           <select value={preparerId} onChange={(event) => setPreparerId(event.target.value)} className={fieldClass}>
             <option value="">Unassigned</option>
-            {staff.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
+            {preparers.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
           </select>
         </label>
 
@@ -99,7 +101,7 @@ export function ReturnJobEditor({
           Reviewer
           <select value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} className={fieldClass}>
             <option value="">Unassigned</option>
-            {staff.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
+            {reviewers.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
           </select>
         </label>
       </div>
