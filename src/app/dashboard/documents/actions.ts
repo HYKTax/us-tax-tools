@@ -246,6 +246,20 @@ export async function runDocumentExtraction(documentId: string): Promise<ActionR
 
     if (updateError) throw updateError;
 
+    await supabase.from("audit_log").insert({
+      firm_id: profile.firm_id,
+      actor_id: profile.id,
+      action: "document.ai_extracted",
+      target_type: "document",
+      target_id: document.id,
+      metadata: {
+        document_type: parsed.document_type,
+        tax_year: parsed.tax_year,
+        model,
+        confidence: parsed.confidence,
+      },
+    });
+
     revalidatePath("/dashboard/documents");
     revalidatePath(`/dashboard/documents/${document.id}`);
     if (document.tax_return_job_id) {
@@ -290,6 +304,14 @@ export async function markExtractionReviewed(documentId: string): Promise<Action
     return { error: error?.message ?? "Completed extraction not found." };
   }
 
+  await supabase.from("audit_log").insert({
+    firm_id: profile.firm_id,
+    actor_id: profile.id,
+    action: "document.ai_reviewed",
+    target_type: "document",
+    target_id: documentId,
+  });
+
   revalidatePath("/dashboard/documents");
   revalidatePath(`/dashboard/documents/${documentId}`);
   return { success: true };
@@ -308,6 +330,14 @@ export async function markDocumentReviewed(documentId: string): Promise<ActionRe
     .maybeSingle();
 
   if (error || !data) return { error: error?.message ?? "Document not found." };
+
+  await supabase.from("audit_log").insert({
+    firm_id: profile.firm_id,
+    actor_id: profile.id,
+    action: "document.reviewed",
+    target_type: "document",
+    target_id: documentId,
+  });
 
   revalidatePath("/dashboard/documents");
   revalidatePath(`/dashboard/documents/${documentId}`);
@@ -331,6 +361,15 @@ export async function linkDocumentToReturn(
     .maybeSingle();
 
   if (error || !data) return { error: error?.message ?? "Document not found." };
+
+  await supabase.from("audit_log").insert({
+    firm_id: profile.firm_id,
+    actor_id: profile.id,
+    action: data.tax_return_job_id ? "document.return_linked" : "document.return_unlinked",
+    target_type: "document",
+    target_id: documentId,
+    metadata: { tax_return_job_id: data.tax_return_job_id },
+  });
 
   revalidatePath("/dashboard/documents");
   revalidatePath(`/dashboard/documents/${documentId}`);
