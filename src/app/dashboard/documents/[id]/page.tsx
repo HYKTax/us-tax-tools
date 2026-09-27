@@ -101,7 +101,7 @@ export default async function DocumentDetailPage({
                 <h2 className="font-semibold text-slate-950">Source document</h2>
                 <p className="mt-1 text-sm text-slate-500">Always verify AI-extracted values against the original document.</p>
               </div>
-              {signedDocument.url ? (
+              {signedDocument?.url ? (
                 <a
                   href={signedDocument.url}
                   target="_blank"
