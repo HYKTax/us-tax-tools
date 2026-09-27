@@ -86,6 +86,7 @@ export default async function ClientDetailPage({
       .from("profiles")
       .select("id, full_name")
       .in("role", ["firm_admin", "firm_staff"])
+      .eq("is_active", true)
       .order("full_name"),
   ]);
 
