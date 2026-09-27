@@ -9,25 +9,26 @@ export function MarkReviewedButton({ organizerId }: { organizerId: string }) {
   const [done, setDone] = useState(false);
 
   if (done) {
-    return <span className="text-sm text-ledger">Marked reviewed.</span>;
+    return (
+      <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700">
+        ✓ Marked reviewed
+      </span>
+    );
   }
 
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="flex flex-col items-start gap-2">
       <button
         onClick={() => {
           setError(null);
           startTransition(async () => {
             const result = await markReviewed(organizerId);
-            if (result.error) {
-              setError(result.error);
-            } else {
-              setDone(true);
-            }
+            if (result.error) setError(result.error);
+            else setDone(true);
           });
         }}
         disabled={pending}
-        className="rounded-md bg-ledger px-3 py-2 text-sm font-medium text-white hover:bg-ledger-dark disabled:opacity-60"
+        className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "Saving…" : "Mark reviewed"}
       </button>
