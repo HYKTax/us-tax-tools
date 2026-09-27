@@ -7,6 +7,17 @@ function statusLabel(status: string) {
   return status.replaceAll("_", " ");
 }
 
+type ApprovedSourceValue = {
+  id: string;
+  document_id: string;
+  field_name: string;
+  field_label: string;
+  value: string;
+  confidence: number | null;
+  accepted_at: string;
+  documents: { file_name: string } | null;
+};
+
 function extractionClasses(status: string) {
   if (status === "completed") return "bg-blue-50 text-blue-700";
   if (status === "failed") return "bg-red-50 text-red-700";
@@ -40,13 +51,21 @@ export default async function ReturnJobPage({
   if (error) throw new Error("Unable to load this tax return.");
   if (!job) notFound();
 
-  const { data: documents } = await supabase
-    .from("documents")
-    .select(
-      "id, file_name, status, created_at, document_extractions(status,document_type,tax_year,reviewed_at,confidence,summary)"
-    )
-    .eq("tax_return_job_id", job.id)
-    .order("created_at", { ascending: false });
+  const [{ data: documents }, { data: sourceValues }] = await Promise.all([
+    supabase
+      .from("documents")
+      .select(
+        "id, file_name, status, created_at, document_extractions(status,document_type,tax_year,reviewed_at,confidence,summary)"
+      )
+      .eq("tax_return_job_id", job.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("tax_return_source_values")
+      .select("id, document_id, field_name, field_label, value, confidence, accepted_at, documents(file_name)")
+      .eq("tax_return_job_id", job.id)
+      .order("field_name")
+      .order("accepted_at", { ascending: false }),
+  ]);
 
   const client = job.clients as unknown as {
     primary_contact_name: string;
@@ -66,6 +85,17 @@ export default async function ReturnJobPage({
     const extraction = Array.isArray(raw) ? raw[0] : raw;
     return Boolean(extraction && typeof extraction === "object" && "status" in extraction && extraction.status === "completed");
   }).length;
+
+  const approvedSourceValues = (sourceValues ?? []) as unknown as ApprovedSourceValue[];
+  const fieldValueSets = new Map<string, Set<string>>();
+  for (const field of approvedSourceValues) {
+    const values = fieldValueSets.get(field.field_name) ?? new Set<string>();
+    values.add(field.value);
+    fieldValueSets.set(field.field_name, values);
+  }
+  const conflictingFields = new Set(
+    [...fieldValueSets.entries()].filter(([, values]) => values.size > 1).map(([name]) => name)
+  );
 
   return (
     <div className="flex flex-col gap-7">
@@ -164,6 +194,77 @@ export default async function ReturnJobPage({
             </dl>
           </section>
         </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="font-semibold text-slate-950">Approved return data</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Human-reviewed source values available for future tax-software export.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
+              {approvedSourceValues.length} approved fields
+            </span>
+            {conflictingFields.size > 0 && (
+              <span className="rounded-full bg-red-50 px-2.5 py-1 font-semibold text-red-700">
+                {conflictingFields.size} conflict{conflictingFields.size === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {approvedSourceValues.length === 0 ? (
+          <div className="px-5 py-10 text-center">
+            <p className="text-sm font-medium text-slate-800">No approved source data yet</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Review an AI extraction and its original document, then accept the fields into return data.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-5 py-3">Field</th>
+                  <th className="px-5 py-3">Value</th>
+                  <th className="px-5 py-3">Source</th>
+                  <th className="px-5 py-3">Confidence</th>
+                  <th className="px-5 py-3">Accepted</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {approvedSourceValues.map((field) => (
+                  <tr key={field.id} className={conflictingFields.has(field.field_name) ? "bg-red-50/40" : ""}>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-slate-900">{field.field_label}</span>
+                        {conflictingFields.has(field.field_name) && (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                            Check conflict
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400">{field.field_name}</p>
+                    </td>
+                    <td className="px-5 py-4 font-mono text-slate-800">{field.value}</td>
+                    <td className="px-5 py-4">
+                      <Link href={`/dashboard/documents/${field.document_id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                        {field.documents?.file_name ?? "Source document"}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-4 text-slate-500">
+                      {field.confidence === null ? "—" : `${Math.round(field.confidence * 100)}%`}
+                    </td>
+                    <td className="px-5 py-4 text-slate-500">{new Date(field.accepted_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
