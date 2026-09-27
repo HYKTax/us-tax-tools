@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
+  acceptExtractionToReturn,
   linkDocumentToReturn,
   markDocumentReviewed,
   markExtractionReviewed,
@@ -15,6 +16,12 @@ type ReturnOption = {
   status: string;
 };
 
+type ActionResponse = {
+  error?: string;
+  success?: boolean;
+  message?: string;
+};
+
 export function DocumentReviewActions({
   documentId,
   currentReturnJobId,
@@ -22,6 +29,7 @@ export function DocumentReviewActions({
   documentReviewed,
   extractionCompleted,
   extractionReviewed,
+  acceptedFieldCount,
   aiConfigured,
 }: {
   documentId: string;
@@ -30,19 +38,26 @@ export function DocumentReviewActions({
   documentReviewed: boolean;
   extractionCompleted: boolean;
   extractionReviewed: boolean;
+  acceptedFieldCount: number;
   aiConfigured: boolean;
 }) {
   const [returnJobId, setReturnJobId] = useState(currentReturnJobId ?? "");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
-  const run = (action: () => Promise<{ error?: string; success?: boolean }>, successMessage: string) => {
+  const run = (action: () => Promise<ActionResponse>, successMessage: string) => {
     setMessage(null);
     startTransition(async () => {
       const result = await action();
-      setMessage(result.error ?? successMessage);
+      setMessage(result.error ?? result.message ?? successMessage);
     });
   };
+
+  const canAccept =
+    Boolean(currentReturnJobId) &&
+    documentReviewed &&
+    extractionCompleted &&
+    extractionReviewed;
 
   return (
     <div className="flex flex-col gap-5">
@@ -149,6 +164,48 @@ export function DocumentReviewActions({
             ✓ Document reviewed
           </span>
         )}
+      </div>
+
+      <div className="border-t border-slate-100 pt-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Approved return data</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Only human-reviewed fields are copied into this trusted layer for future tax-software export.
+            </p>
+          </div>
+          {acceptedFieldCount > 0 && (
+            <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+              {acceptedFieldCount} approved
+            </span>
+          )}
+        </div>
+
+        {!canAccept && (
+          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            {!currentReturnJobId
+              ? "Link this document to a tax return first."
+              : !extractionCompleted
+                ? "Run AI extraction first."
+                : !extractionReviewed
+                  ? "Human-review the AI extraction first."
+                  : "Mark the original document reviewed first."}
+          </p>
+        )}
+
+        <button
+          type="button"
+          disabled={pending || !canAccept}
+          onClick={() =>
+            run(
+              () => acceptExtractionToReturn(documentId),
+              "Reviewed fields accepted into return data."
+            )
+          }
+          className="mt-3 rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {acceptedFieldCount > 0 ? "Refresh approved fields" : "Accept fields into return data"}
+        </button>
       </div>
 
       {message && <p className="text-sm text-slate-500">{message}</p>}
