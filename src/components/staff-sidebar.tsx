@@ -3,6 +3,7 @@ import { Brand } from "@/components/brand";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "grid" },
+  { href: "/dashboard/work", label: "Work / Returns", icon: "work" },
   { href: "/dashboard/clients", label: "Clients", icon: "users" },
   { href: "/dashboard/documents", label: "Documents", icon: "folder" },
   { href: "/dashboard/messages", label: "Messages", icon: "message" },
@@ -26,6 +27,10 @@ function Icon({ name }: { name: string }) {
 
   if (name === "message") {
     return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>;
+  }
+
+  if (name === "work") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/></svg>;
   }
 
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
@@ -53,8 +58,8 @@ export function StaffSidebar() {
           Coming next
         </div>
         <div className="mt-2 flex flex-col gap-1 text-sm text-slate-500">
-          <span className="px-3 py-2">Work / Returns</span>
           <span className="px-3 py-2">AI document extraction</span>
+          <span className="px-3 py-2">Dedicated return jobs</span>
         </div>
       </nav>
       <div className="border-t border-white/10 px-5 py-4 text-xs text-slate-500">
