@@ -6,44 +6,60 @@ export default async function TemplatesPage() {
   const { data: templates, error } = await supabase
     .from("organizer_templates")
     .select("id, name, tax_year, organizer_template_items(count)")
+    .order("tax_year", { ascending: false })
     .order("name");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-ink">Organizer templates</h1>
+    <div className="flex flex-col gap-7">
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-semibold text-blue-600">Organizer library</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Organizer templates</h1>
+          <p className="mt-2 text-slate-500">Create reusable questionnaires and document requests for each return type.</p>
+        </div>
         <Link
           href="/dashboard/templates/new"
-          className="rounded-md bg-ledger px-3 py-2 text-sm font-medium text-white hover:bg-ledger-dark"
+          className="inline-flex w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
         >
-          New template
+          + New template
         </Link>
-      </div>
+      </section>
 
       {error && (
-        <p className="text-sm text-red-600">Couldn&apos;t load templates: {error.message}</p>
-      )}
-
-      {!error && (!templates || templates.length === 0) && (
-        <p className="rounded-md border border-hairline bg-white px-4 py-6 text-center text-sm text-ink-muted">
-          No templates yet. Create one to start sending organizers.
+        <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Couldn&apos;t load templates: {error.message}
         </p>
       )}
 
+      {!error && (!templates || templates.length === 0) && (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+          <h2 className="font-semibold text-slate-900">No organizer templates yet</h2>
+          <p className="mt-2 text-sm text-slate-500">Create a reusable 1040, business, or custom organizer to start collecting client information.</p>
+          <Link href="/dashboard/templates/new" className="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+            Create template
+          </Link>
+        </div>
+      )}
+
       {templates && templates.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {templates.map((t) => (
-            <li
-              key={t.id}
-              className="flex items-center justify-between rounded-md border border-hairline bg-white px-4 py-3"
-            >
-              <span className="text-ink">{t.name}</span>
-              <span className="text-sm text-ink-muted">
-                {t.tax_year} · {t.organizer_template_items[0]?.count ?? 0} questions
-              </span>
-            </li>
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {templates.map((template) => (
+            <div key={template.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="font-semibold text-slate-950">{template.name}</h2>
+                  <p className="mt-1 text-sm text-slate-500">Tax year {template.tax_year}</p>
+                </div>
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                  {template.organizer_template_items[0]?.count ?? 0} questions
+                </span>
+              </div>
+              <p className="mt-5 text-sm leading-6 text-slate-500">
+                Ready to send from any client profile. Questions are copied into each client organizer when sent.
+              </p>
+            </div>
           ))}
-        </ul>
+        </section>
       )}
     </div>
   );
