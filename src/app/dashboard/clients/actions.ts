@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
+import { hasStaffPermission } from "@/lib/staff-permissions";
 
 export type CreateClientState = {
   status: "idle" | "error";
@@ -14,8 +15,8 @@ export async function createClientRecord(
   formData: FormData
 ): Promise<CreateClientState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role === "client") {
-    return { status: "error", message: "Not authorized." };
+  if (!profile || !hasStaffPermission(profile, "clients.manage")) {
+    return { status: "error", message: "Your role cannot create clients." };
   }
 
   const primary_contact_name = String(formData.get("primary_contact_name") ?? "").trim();
