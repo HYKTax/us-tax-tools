@@ -43,7 +43,7 @@ export default async function DocumentDetailPage({
   if (error) throw new Error("Unable to load this document.");
   if (!document) notFound();
 
-  const [{ data: extraction }, { data: returnJobs }] = await Promise.all([
+  const [{ data: extraction }, { data: returnJobs }, { count: acceptedFieldCount }] = await Promise.all([
     supabase
       .from("document_extractions")
       .select(
@@ -57,6 +57,10 @@ export default async function DocumentDetailPage({
       .eq("client_id", document.client_id)
       .order("tax_year", { ascending: false })
       .order("created_at", { ascending: false }),
+    supabase
+      .from("tax_return_source_values")
+      .select("id", { count: "exact", head: true })
+      .eq("document_id", id),
   ]);
 
   const [signedDocument] = await withSignedUrls(supabase, [document], 20 * 60);
@@ -268,6 +272,7 @@ export default async function DocumentDetailPage({
                 documentReviewed={document.status === "reviewed"}
                 extractionCompleted={extraction?.status === "completed"}
                 extractionReviewed={Boolean(extraction?.reviewed_at)}
+                acceptedFieldCount={acceptedFieldCount ?? 0}
                 aiConfigured={aiConfigured}
               />
             </div>
