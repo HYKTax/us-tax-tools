@@ -8,6 +8,12 @@ type ClientOption = {
   primary_contact_name: string;
   email: string;
   client_type: string;
+  tag_ids: string[];
+};
+
+type TagOption = {
+  id: string;
+  name: string;
 };
 
 type TemplateOption = {
@@ -19,9 +25,11 @@ type TemplateOption = {
 export function BatchOrganizerSender({
   clients,
   templates,
+  tags,
 }: {
   clients: ClientOption[];
   templates: TemplateOption[];
+  tags: TagOption[];
 }) {
   const initialTemplate = templates[0];
   const [templateId, setTemplateId] = useState(initialTemplate?.id ?? "");
@@ -30,6 +38,7 @@ export function BatchOrganizerSender({
     initialTemplate ? `${initialTemplate.tax_year} ${initialTemplate.name}` : `${new Date().getFullYear()} Tax Organizer`
   );
   const [clientType, setClientType] = useState("");
+  const [tagId, setTagId] = useState("");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
@@ -39,10 +48,11 @@ export function BatchOrganizerSender({
     const q = query.trim().toLowerCase();
     return clients.filter((client) => {
       if (clientType && client.client_type !== clientType) return false;
+      if (tagId && !client.tag_ids.includes(tagId)) return false;
       if (!q) return true;
       return `${client.primary_contact_name} ${client.email}`.toLowerCase().includes(q);
     });
-  }, [clients, clientType, query]);
+  }, [clients, clientType, tagId, query]);
 
   function selectVisible() {
     setSelected((previous) => {
@@ -159,6 +169,22 @@ export function BatchOrganizerSender({
                 <option value="">All active clients</option>
                 <option value="individual">Individuals</option>
                 <option value="business">Businesses</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium text-slate-700">
+              Client tag
+              <select
+                value={tagId}
+                onChange={(event) => {
+                  setTagId(event.target.value);
+                  setSelected(new Set());
+                }}
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5"
+              >
+                <option value="">All tags</option>
+                {tags.map((tag) => (
+                  <option key={tag.id} value={tag.id}>{tag.name}</option>
+                ))}
               </select>
             </label>
           </div>
