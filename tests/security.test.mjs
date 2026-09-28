@@ -346,10 +346,17 @@ test('database authorization and organizer lifecycle', async () => {
     await db.exec(`update clients set status='archived' where id='${id(91)}'`);
     await denied(id(10), `select prepare_client_invitation('${id(91)}')`, /Restore this client/);
     // Clients can update only their own contact details through the guarded RPC.
-    await denied(
+    const directClientUpdate = await asUser(
       id(11),
-      `update clients set phone='+1 999 999 9999' where id='${id(20)}'`,
-      /row-level security|permission denied/
+      `update clients
+       set phone='+1 999 999 9999'
+       where id='${id(20)}'
+       returning id`
+    );
+    assert.equal(directClientUpdate.rows.length,0);
+    assert.equal(
+      (await db.query(`select phone from clients where id='${id(20)}'`)).rows[0].phone,
+      null
     );
 
     const clientContact = (await asUser(
