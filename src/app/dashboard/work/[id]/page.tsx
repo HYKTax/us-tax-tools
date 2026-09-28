@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { ReturnJobEditor } from "./return-job-editor";
 import { ReturnReviewPanel } from "./return-review-panel";
+import { TaxSoftwareExportPanel } from "./tax-software-export-panel";
+import type { TaxExportSourceField } from "@/lib/tax-software-export";
 import {
   canBePreparer,
   canBeReviewer,
@@ -37,7 +39,15 @@ type ApprovedSourceValue = {
   value: string;
   confidence: number | null;
   accepted_at: string;
-  documents: { file_name: string } | null;
+  documents:
+    | {
+        file_name: string;
+        document_extractions:
+          | { document_type: string | null; tax_year: number | null }
+          | Array<{ document_type: string | null; tax_year: number | null }>
+          | null;
+      }
+    | null;
 };
 
 function extractionClasses(status: string) {
@@ -96,7 +106,9 @@ export default async function ReturnJobPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("tax_return_source_values")
-      .select("id, document_id, field_name, field_label, value, confidence, accepted_at, documents(file_name)")
+      .select(
+        "id, document_id, field_name, field_label, value, confidence, accepted_at, documents(file_name, document_extractions(document_type,tax_year))"
+      )
       .eq("tax_return_job_id", job.id)
       .order("field_name")
       .order("accepted_at", { ascending: false }),
@@ -140,15 +152,20 @@ export default async function ReturnJobPage({
   });
 
   const approvedSourceValues = (sourceValues ?? []) as unknown as ApprovedSourceValue[];
-  const fieldValueSets = new Map<string, Set<string>>();
-  for (const field of approvedSourceValues) {
-    const values = fieldValueSets.get(field.field_name) ?? new Set<string>();
-    values.add(field.value);
-    fieldValueSets.set(field.field_name, values);
-  }
-  const conflictingFields = new Set(
-    [...fieldValueSets.entries()].filter(([, values]) => values.size > 1).map(([name]) => name)
-  );
+  const exportSourceFields: TaxExportSourceField[] = approvedSourceValues.map((field) => {
+    const rawExtraction = field.documents?.document_extractions;
+    const extraction = Array.isArray(rawExtraction) ? rawExtraction[0] : rawExtraction;
+
+    return {
+      documentId: field.document_id,
+      fileName: field.documents?.file_name ?? "Source document",
+      documentType: extraction?.document_type ?? null,
+      fieldName: field.field_name,
+      fieldLabel: field.field_label,
+      value: field.value,
+      confidence: field.confidence,
+    };
+  });
 
   const reviews = ((reviewRows ?? []) as unknown as ReturnReviewRow[]).map((review) => ({
     id: review.id,
@@ -283,7 +300,12 @@ export default async function ReturnJobPage({
         canReviewReturns={canReviewReturns}
         sourceDocumentsReady={sourceDocumentsReady}
         aiReviewsReady={aiReviewsReady}
-        hasSourceConflicts={conflictingFields.size > 0}
+      />
+
+      <TaxSoftwareExportPanel
+        jobId={job.id}
+        hasCurrentApproval={hasCurrentApproval}
+        sourceFields={exportSourceFields}
       />
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -298,11 +320,6 @@ export default async function ReturnJobPage({
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
               {approvedSourceValues.length} approved fields
             </span>
-            {conflictingFields.size > 0 && (
-              <span className="rounded-full bg-red-50 px-2.5 py-1 font-semibold text-red-700">
-                {conflictingFields.size} conflict{conflictingFields.size === 1 ? "" : "s"}
-              </span>
-            )}
           </div>
         </div>
 
@@ -327,16 +344,9 @@ export default async function ReturnJobPage({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {approvedSourceValues.map((field) => (
-                  <tr key={field.id} className={conflictingFields.has(field.field_name) ? "bg-red-50/40" : ""}>
+                  <tr key={field.id}>
                     <td className="px-5 py-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-slate-900">{field.field_label}</span>
-                        {conflictingFields.has(field.field_name) && (
-                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
-                            Check conflict
-                          </span>
-                        )}
-                      </div>
+                      <span className="font-medium text-slate-900">{field.field_label}</span>
                       <p className="mt-1 text-xs text-slate-400">{field.field_name}</p>
                     </td>
                     <td className="px-5 py-4 font-mono text-slate-800">{field.value}</td>
