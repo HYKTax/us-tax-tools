@@ -66,6 +66,12 @@ export default async function PortalLayout({
                 Documents
               </Link>
               <Link
+                href="/portal/engagements"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              >
+                Engagements
+              </Link>
+              <Link
                 href="/portal/returns"
                 className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               >
@@ -114,6 +120,12 @@ export default async function PortalLayout({
             className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
           >
             Documents
+          </Link>
+          <Link
+            href="/portal/engagements"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Engagements
           </Link>
           <Link
             href="/portal/returns"
