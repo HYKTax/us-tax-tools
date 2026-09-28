@@ -71,7 +71,10 @@ export default async function DashboardLayout({
               </>
             )}
             {canManageTeam && (
-              <Link href="/dashboard/team" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Team</Link>
+              <>
+                <Link href="/dashboard/team" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Team</Link>
+                <Link href="/dashboard/settings" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Settings</Link>
+              </>
             )}
           </nav>
         </header>
