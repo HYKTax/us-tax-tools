@@ -42,6 +42,7 @@ export default async function ClientsPage({
   const statusFilter = firstParam(filters.status);
   const typeFilter = firstParam(filters.type);
   const attentionFilter = firstParam(filters.attention);
+  const tagFilter = firstParam(filters.tag);
   const profile = await getCurrentProfile();
   const canManageClients = Boolean(profile && hasStaffPermission(profile, "clients.manage"));
   const supabase = await createClient();
@@ -51,6 +52,8 @@ export default async function ClientsPage({
     { data: clients, error },
     { data: returnSignals },
     { data: documentSignals },
+    { data: tagRows },
+    { data: tagAssignments },
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -67,11 +70,32 @@ export default async function ClientsPage({
       .eq("status", "pending_review")
       .neq("document_kind", "return_copy")
       .limit(2000),
+    supabase
+      .from("client_tags")
+      .select("id,name")
+      .order("name")
+      .limit(200),
+    supabase
+      .from("client_tag_assignments")
+      .select("client_id,tag_id")
+      .limit(5000),
   ]);
 
   const allRows = (clients ?? []) as ClientRow[];
   const returns = (returnSignals ?? []) as ClientReturnSignal[];
   const documents = (documentSignals ?? []) as ClientDocumentSignal[];
+  const tags = (tagRows ?? []) as Array<{ id: string; name: string }>;
+  const assignmentRows = (tagAssignments ?? []) as Array<{ client_id: string; tag_id: string }>;
+  const tagNameById = new Map(tags.map((tag) => [tag.id, tag.name]));
+  const tagsByClient = new Map<string, Array<{ id: string; name: string }>>();
+
+  for (const assignment of assignmentRows) {
+    const name = tagNameById.get(assignment.tag_id);
+    if (!name) continue;
+    const current = tagsByClient.get(assignment.client_id) ?? [];
+    current.push({ id: assignment.tag_id, name });
+    tagsByClient.set(assignment.client_id, current);
+  }
 
   const attentionReasons = new Map<string, Set<string>>();
   const addReason = (clientId: string, reason: string) => {
@@ -104,13 +128,19 @@ export default async function ClientsPage({
     if (statusFilter && client.status !== statusFilter) return false;
     if (typeFilter && client.client_type !== typeFilter) return false;
     if (attentionFilter === "needs_attention" && !attentionReasons.has(client.id)) return false;
+    if (
+      tagFilter &&
+      !(tagsByClient.get(client.id) ?? []).some((tag) => tag.id === tagFilter)
+    ) {
+      return false;
+    }
     return true;
   });
 
   const active = allRows.filter((client) => client.status === "active").length;
   const invited = allRows.filter((client) => client.status === "invited").length;
   const needsAttention = allRows.filter((client) => attentionReasons.has(client.id)).length;
-  const hasFilters = Boolean(query || statusFilter || typeFilter || attentionFilter);
+  const hasFilters = Boolean(query || statusFilter || typeFilter || attentionFilter || tagFilter);
 
   return (
     <div className="flex flex-col gap-7">
@@ -180,7 +210,7 @@ export default async function ClientsPage({
             </Link>
           )}
         </div>
-        <form action="/dashboard/clients" method="get" className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <form action="/dashboard/clients" method="get" className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <input
             name="q"
             defaultValue={firstParam(filters.q)}
@@ -213,6 +243,16 @@ export default async function ClientsPage({
           >
             <option value="">All attention levels</option>
             <option value="needs_attention">Needs attention</option>
+          </select>
+          <select
+            name="tag"
+            defaultValue={tagFilter}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">All tags</option>
+            {tags.map((tag) => (
+              <option key={tag.id} value={tag.id}>{tag.name}</option>
+            ))}
           </select>
           <button
             type="submit"
@@ -252,13 +292,14 @@ export default async function ClientsPage({
             </p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-sm">
+            <table className="w-full min-w-[1040px] text-left text-sm">
               <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-3">Client</th>
                   <th className="px-5 py-3">Email</th>
                   <th className="px-5 py-3">Type</th>
                   <th className="px-5 py-3">Portal status</th>
+                  <th className="px-5 py-3">Tags</th>
                   <th className="px-5 py-3">Attention</th>
                   <th className="px-5 py-3 text-right">Open</th>
                 </tr>
@@ -266,7 +307,7 @@ export default async function ClientsPage({
               <tbody className="divide-y divide-slate-100">
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center">
+                    <td colSpan={7} className="px-5 py-12 text-center">
                       <p className="font-medium text-slate-800">No clients match these filters</p>
                       <p className="mt-1 text-sm text-slate-500">Clear or adjust the filters above.</p>
                     </td>
@@ -284,6 +325,22 @@ export default async function ClientsPage({
                       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClasses(client.status)}`}>
                         {client.status}
                       </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      {(tagsByClient.get(client.id) ?? []).length > 0 ? (
+                        <div className="flex max-w-56 flex-wrap gap-1.5">
+                          {(tagsByClient.get(client.id) ?? []).slice(0, 3).map((tag) => (
+                            <span
+                              key={tag.id}
+                              className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700"
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       {attentionReasons.has(client.id) ? (
