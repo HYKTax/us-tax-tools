@@ -111,12 +111,20 @@ export default async function DocumentsPage({
 
   return (
     <div className="flex flex-col gap-7">
-      <section>
-        <p className="text-sm font-semibold text-blue-600">Document center</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Documents</h1>
-        <p className="mt-2 text-slate-500">
-          Review source files, AI-extracted fields, and securely managed final return copies.
-        </p>
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-semibold text-blue-600">Document center</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Documents</h1>
+          <p className="mt-2 text-slate-500">
+            Review source files, AI-extracted fields, and securely managed final return copies.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/requests"
+          className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+        >
+          Request documents
+        </Link>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
