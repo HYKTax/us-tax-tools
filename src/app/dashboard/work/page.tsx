@@ -177,9 +177,17 @@ export default async function WorkPage({
             Track preparation, review, extensions, signatures, and e-file status across the firm.
           </p>
         </div>
-        <Link href="/dashboard/clients" className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
-          Create return from client
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/dashboard/work/export"
+            className="w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Export CSV
+          </a>
+          <Link href="/dashboard/clients" className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+            Create return from client
+          </Link>
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
