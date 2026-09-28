@@ -7,6 +7,10 @@ import { canBePreparer, canBeReviewer, hasStaffPermission, type StaffOperational
 import { getCurrentProfile } from "@/lib/auth";
 import { StaffDocumentUploader } from "./staff-document-uploader";
 import { ClientNotesPanel, type ClientNoteView } from "./client-notes-panel";
+import {
+  ClientContactForm,
+  type ClientContactValues,
+} from "@/components/client-contact-form";
 
 type OrganizerRow = {
   id: string;
@@ -98,7 +102,7 @@ export default async function ClientDetailPage({
 
   const { data: client } = await supabase
     .from("clients")
-    .select("id, primary_contact_name, email, client_type, status")
+    .select("id, primary_contact_name, email, client_type, status, phone, address_line1, address_line2, city, state_region, postal_code, country, preferred_contact_method, contact_updated_at")
     .eq("id", id)
     .single();
 
@@ -176,6 +180,18 @@ export default async function ClientDetailPage({
     profile.role === "firm_admin" ||
     profile.staff_role === "admin" ||
     profile.staff_role === "manager";
+  const contact: ClientContactValues = {
+    phone: client.phone,
+    address_line1: client.address_line1,
+    address_line2: client.address_line2,
+    city: client.city,
+    state_region: client.state_region,
+    postal_code: client.postal_code,
+    country: client.country,
+    preferred_contact_method: client.preferred_contact_method,
+    contact_updated_at: client.contact_updated_at,
+  };
+
   const pendingOrganizers = organizerRows.filter((organizer) => ["sent", "in_progress"].includes(organizer.status)).length;
   const submitted = organizerRows.filter((organizer) => organizer.status === "submitted").length;
   const openReturns = jobRows.filter((job) => !["accepted", "completed"].includes(job.status)).length;
@@ -253,6 +269,18 @@ export default async function ClientDetailPage({
           <p className="mt-2 text-2xl font-semibold text-slate-950">{submitted}</p>
         </div>
       </section>
+
+      <ClientContactForm
+        clientId={client.id}
+        initial={contact}
+        editable={canManageClients}
+        title="Client contact & mailing details"
+        helper={
+          canManageClients
+            ? "Update the phone, mailing address, and preferred contact method used by the firm."
+            : "Contact details are visible to your role but can only be edited by authorized client-management staff."
+        }
+      />
 
       <section className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
