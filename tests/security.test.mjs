@@ -331,5 +331,118 @@ test('database authorization and organizer lifecycle', async () => {
       )).rows[0].n,
       1
     );
+
+    // A fresh approved cycle is required before delivery.
+    const thirdReviewId = (await asUser(
+      id(10),
+      `select request_tax_return_review('${returnJobId}','Final filing review') as id`
+    )).rows[0].id;
+    await asUser(
+      id(14),
+      `select resolve_tax_return_review('${thirdReviewId}','approved','Approved for filing')`
+    );
+
+    // A final return copy is a delivery artifact, not source evidence. Linking
+    // it must not invalidate the current review approval.
+    const finalPath = `${id(1)}/${id(20)}/return-copies/${returnJobId}/final-return.pdf`;
+    await db.exec(`
+      insert into storage.objects(bucket_id,name)
+      values ('client-documents','${finalPath}');
+
+      insert into documents(
+        id,firm_id,client_id,uploaded_by,storage_path,file_name,mime_type,
+        size_bytes,status,tax_return_job_id,document_kind
+      ) values (
+        '${id(320)}','${id(1)}','${id(20)}','${id(10)}',
+        '${finalPath}','2025-final-return.pdf','application/pdf',
+        1234,'reviewed','${returnJobId}','return_copy'
+      );
+    `);
+
+    let deliveryJob = (await db.query(
+      `select status,review_version from tax_return_jobs where id='${returnJobId}'`
+    )).rows[0];
+    assert.equal(deliveryJob.status,'ready_to_file');
+    assert.equal(deliveryJob.review_version,3);
+
+    assert.equal(
+      (await asUser(id(11), `select id from documents where id='${id(320)}'`)).rows.length,
+      0
+    );
+    assert.equal(
+      (await asUser(id(11), `select name from storage.objects where name='${finalPath}'`)).rows.length,
+      0
+    );
+
+    await denied(
+      id(10),
+      `update documents set client_visible=true where id='${id(320)}'`,
+      /controlled release workflow/
+    );
+
+    await denied(
+      id(14),
+      `select set_return_copy_visibility('${id(320)}',true)`,
+      /accepted or completed/
+    );
+
+    await asUser(id(10), `
+      select update_tax_return_job(
+        '${returnJobId}',
+        'accepted',
+        'normal',
+        null,
+        '${id(10)}',
+        '${id(14)}',
+        'not_needed',
+        'accepted'
+      )
+    `);
+
+    await asUser(
+      id(14),
+      `select set_return_copy_visibility('${id(320)}',true)`
+    );
+
+    assert.equal(
+      (await asUser(id(11), `select id from documents where id='${id(320)}'`)).rows.length,
+      1
+    );
+    assert.equal(
+      (await asUser(id(11), `select name from storage.objects where name='${finalPath}'`)).rows.length,
+      1
+    );
+    assert.equal(
+      (await asUser(
+        id(11),
+        `select count(*)::int as n from notifications
+         where kind='tax_return_copy_released'
+           and tax_return_job_id='${returnJobId}'`
+      )).rows[0].n,
+      1
+    );
+
+    await asUser(
+      id(14),
+      `select set_return_copy_visibility('${id(320)}',false)`
+    );
+
+    assert.equal(
+      (await asUser(id(11), `select id from documents where id='${id(320)}'`)).rows.length,
+      0
+    );
+    assert.equal(
+      (await asUser(id(11), `select name from storage.objects where name='${finalPath}'`)).rows.length,
+      0
+    );
+    assert.equal(
+      (await asUser(
+        id(11),
+        `select count(*)::int as n from notifications
+         where kind='tax_return_copy_withdrawn'
+           and tax_return_job_id='${returnJobId}'`
+      )).rows[0].n,
+      1
+    );
   } finally { await db.close(); }
 });
