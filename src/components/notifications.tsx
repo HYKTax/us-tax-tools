@@ -118,11 +118,15 @@ export function Notifications({
               <li key={row.id} className={row.read_at ? "bg-white" : "bg-blue-50/50"}>
                 <Link
                   href={
-                    row.tax_return_job_id
+                    row.subject_client_id
                       ? area === "portal"
-                        ? "/portal/returns"
-                        : `/dashboard/work/${row.tax_return_job_id}`
-                      : `/${area}/organizers/${row.organizer_id}`
+                        ? "/portal/messages"
+                        : `/dashboard/messages/${row.subject_client_id}`
+                      : row.tax_return_job_id
+                        ? area === "portal"
+                          ? "/portal/returns"
+                          : `/dashboard/work/${row.tax_return_job_id}`
+                        : `/${area}/organizers/${row.organizer_id}`
                   }
                   onClick={() => {
                     setOpen(false);
