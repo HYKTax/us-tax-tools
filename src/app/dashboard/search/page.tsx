@@ -54,6 +54,7 @@ export default async function GlobalSearchPage({
     { data: documents },
     { data: organizers },
     { data: tasks },
+    { data: matchingTags },
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -79,7 +80,43 @@ export default async function GlobalSearchPage({
       .or(`title.ilike.${pattern},details.ilike.${pattern}`)
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("client_tags")
+      .select("id,name")
+      .ilike("name", pattern)
+      .order("name")
+      .limit(20),
   ]);
+
+  const tagIds = (matchingTags ?? []).map((tag) => tag.id);
+  let taggedClients: Array<{
+    id: string;
+    primary_contact_name: string;
+    email: string;
+    tag_name: string;
+  }> = [];
+
+  if (tagIds.length > 0) {
+    const { data: assignments } = await supabase
+      .from("client_tag_assignments")
+      .select("client_id,tag_id,clients(primary_contact_name,email)")
+      .in("tag_id", tagIds)
+      .limit(100);
+
+    const tagNameById = new Map((matchingTags ?? []).map((tag) => [tag.id, tag.name]));
+    taggedClients = (assignments ?? []).map((assignment) => {
+      const client = assignment.clients as unknown as {
+        primary_contact_name: string;
+        email: string;
+      } | null;
+      return {
+        id: assignment.client_id,
+        primary_contact_name: client?.primary_contact_name ?? "Client",
+        email: client?.email ?? "",
+        tag_name: tagNameById.get(assignment.tag_id) ?? "Tag",
+      };
+    });
+  }
 
   const matchedClientIds = Array.from(
     new Set([
@@ -87,6 +124,7 @@ export default async function GlobalSearchPage({
       ...(documents ?? []).map((document) => document.client_id),
       ...(organizers ?? []).map((organizer) => organizer.client_id),
       ...(tasks ?? []).flatMap((task) => (task.client_id ? [task.client_id] : [])),
+      ...taggedClients.map((client) => client.id),
     ])
   );
 
@@ -123,6 +161,7 @@ export default async function GlobalSearchPage({
     (documents?.length ?? 0) +
     (organizers?.length ?? 0) +
     (tasks?.length ?? 0) +
+    taggedClients.length +
     returns.length;
 
   return (
@@ -212,6 +251,26 @@ export default async function GlobalSearchPage({
                   </Link>
                 );
               })}
+            </ResultSection>
+          )}
+
+          {taggedClients.length > 0 && (
+            <ResultSection title="Client tags" count={taggedClients.length}>
+              {taggedClients.map((client) => (
+                <Link
+                  key={`${client.id}:${client.tag_name}`}
+                  href={`/dashboard/clients/${client.id}`}
+                  className="block px-5 py-4 hover:bg-slate-50"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-slate-900">{client.primary_contact_name}</p>
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                      {client.tag_name}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">{client.email}</p>
+                </Link>
+              ))}
             </ResultSection>
           )}
 
