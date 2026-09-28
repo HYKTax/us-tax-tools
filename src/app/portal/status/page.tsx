@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
+type ReturnStatusHistoryRow = {
+  tax_return_job_id: string;
+  tax_year: number;
+  return_type: string;
+  client_stage: string;
+  created_at: string;
+};
+
 type ReturnStatusRow = {
   id: string;
   tax_year: number;
@@ -95,8 +103,16 @@ function progressFor(stage: string) {
 
 export default async function ClientStatusPage() {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_client_return_status");
+  const [
+    { data, error },
+    { data: historyData, error: historyError },
+  ] = await Promise.all([
+    supabase.rpc("get_client_return_status"),
+    supabase.rpc("get_client_return_status_history"),
+  ]);
+
   const rows = (data ?? []) as ReturnStatusRow[];
+  const history = (historyData ?? []) as ReturnStatusHistoryRow[];
 
   return (
     <div className="flex flex-col gap-7">
@@ -200,6 +216,58 @@ export default async function ClientStatusPage() {
             );
           })}
         </div>
+      )}
+
+      {historyError && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Return history could not be loaded.
+        </p>
+      )}
+
+      {!historyError && history.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="font-semibold text-slate-950">Return history</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Major client-visible milestones recorded as your return moves through the firm workflow.
+            </p>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {history.slice(0, 30).map((event, index) => {
+              const info = stageInfo(event.client_stage);
+              return (
+                <div
+                  key={event.tax_return_job_id + event.created_at + index}
+                  className="flex gap-4 px-5 py-4"
+                >
+                  <div className="mt-1 flex flex-col items-center">
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                    {index < Math.min(history.length, 30) - 1 && (
+                      <span className="mt-1 h-full min-h-8 w-px bg-slate-200" />
+                    )}
+                  </div>
+                  <div className="min-w-0 pb-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {event.tax_year} {event.return_type}
+                      </p>
+                      <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${info.classes}`}>
+                        {info.label}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {info.description}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {new Date(event.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );
