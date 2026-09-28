@@ -138,6 +138,36 @@ test('database authorization and organizer lifecycle', async () => {
     assert.equal((await db.query(`select profile_id from clients where id='${id(22)}'`)).rows[0].profile_id, id(13));
     assert.equal((await asUser(id(11), `select * from profiles where id='${id(13)}'`)).rows.length, 0);
     assert.equal((await asUser(id(11), `select * from profiles where id='${id(10)}'`)).rows.length, 1);
+
+    await denied(
+      id(11),
+      `select set_client_archived('${id(20)}',true)`,
+      /Not authorized/
+    );
+    await denied(
+      id(10),
+      `select set_client_archived('${id(21)}',true)`,
+      /Client not found/
+    );
+    const archivedClient = (await asUser(
+      id(10),
+      `select (set_client_archived('${id(20)}',true)).status as status`
+    )).rows[0];
+    assert.equal(archivedClient.status,'archived');
+    assert.equal(
+      (await db.query(`select is_active from profiles where id='${id(11)}'`)).rows[0].is_active,
+      false
+    );
+    const reactivatedClient = (await asUser(
+      id(10),
+      `select (set_client_archived('${id(20)}',false)).status as status`
+    )).rows[0];
+    assert.equal(reactivatedClient.status,'active');
+    assert.equal(
+      (await db.query(`select is_active from profiles where id='${id(11)}'`)).rows[0].is_active,
+      true
+    );
+
     await db.exec(`update profiles set is_active=false where id='${id(10)}'`);
     assert.equal((await asUser(id(10), `select * from profiles where id='${id(11)}'`)).rows.length, 0);
     assert.equal((await asUser(id(10), `select * from profiles where id='${id(10)}'`)).rows.length, 1);
