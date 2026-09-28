@@ -6,6 +6,7 @@ import { CreateReturnJobForm } from "@/app/dashboard/work/create-return-job-form
 import { canBePreparer, canBeReviewer, hasStaffPermission, type StaffOperationalRole } from "@/lib/staff-permissions";
 import { getCurrentProfile } from "@/lib/auth";
 import { StaffDocumentUploader } from "./staff-document-uploader";
+import { ClientNotesPanel, type ClientNoteView } from "./client-notes-panel";
 
 type OrganizerRow = {
   id: string;
@@ -71,6 +72,7 @@ export default async function ClientDetailPage({
     { data: documents },
     { data: returnJobs },
     { data: staff },
+    { data: noteRows },
   ] = await Promise.all([
     supabase
       .from("organizers")
@@ -96,6 +98,13 @@ export default async function ClientDetailPage({
       .in("role", ["firm_admin", "firm_staff"])
       .eq("is_active", true)
       .order("full_name"),
+    supabase
+      .from("client_notes")
+      .select("id,author_id,body,is_pinned,created_at,updated_at,author:profiles!client_notes_author_id_fkey(full_name)")
+      .eq("client_id", id)
+      .order("is_pinned", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   const organizerRows = (organizers ?? []) as OrganizerRow[];
@@ -107,6 +116,22 @@ export default async function ClientDetailPage({
   }>;
   const preparers = staffRows.filter((member) => canBePreparer(member.staff_role));
   const reviewers = staffRows.filter((member) => canBeReviewer(member.staff_role));
+  const notes: ClientNoteView[] = (noteRows ?? []).map((note) => {
+    const author = note.author as unknown as { full_name: string } | null;
+    return {
+      id: note.id,
+      author_id: note.author_id,
+      body: note.body,
+      is_pinned: note.is_pinned,
+      created_at: note.created_at,
+      updated_at: note.updated_at,
+      author_name: author?.full_name ?? "Staff",
+    };
+  });
+  const canManageOtherNotes =
+    profile.role === "firm_admin" ||
+    profile.staff_role === "admin" ||
+    profile.staff_role === "manager";
   const pendingOrganizers = organizerRows.filter((organizer) => ["sent", "in_progress"].includes(organizer.status)).length;
   const submitted = organizerRows.filter((organizer) => organizer.status === "submitted").length;
   const openReturns = jobRows.filter((job) => !["accepted", "completed"].includes(job.status)).length;
@@ -242,6 +267,13 @@ export default async function ClientDetailPage({
           </div>
         </div>
       </section>
+
+      <ClientNotesPanel
+        clientId={client.id}
+        notes={notes}
+        currentProfileId={profile.id}
+        canManageOthers={canManageOtherNotes}
+      />
 
       {canManageDocuments && (
         <StaffDocumentUploader firmId={profile.firm_id} clientId={client.id} />
