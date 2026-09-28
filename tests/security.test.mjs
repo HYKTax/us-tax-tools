@@ -193,6 +193,25 @@ test('database authorization and organizer lifecycle', async () => {
     assert.ok((await asUser(id(10), `select id from audit_log`)).rows.length >= 0);
     assert.equal((await asUser(id(11), `select id from audit_log`)).rows.length, 0);
 
+    const clientUnreadBefore = (await asUser(
+      id(11),
+      `select count(*)::int as n from notifications where read_at is null`
+    )).rows[0].n;
+    if (clientUnreadBefore > 0) {
+      const marked = (await asUser(
+        id(11),
+        `select mark_all_notifications_read() as n`
+      )).rows[0].n;
+      assert.equal(marked,clientUnreadBefore);
+      assert.equal(
+        (await asUser(
+          id(11),
+          `select count(*)::int as n from notifications where read_at is null`
+        )).rows[0].n,
+        0
+      );
+    }
+
     await asUser(id(10), `
       insert into client_notes(id,firm_id,client_id,author_id,body)
       values ('${id(63)}','${id(1)}','${id(20)}','${id(10)}','Manager handoff note')
