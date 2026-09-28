@@ -71,6 +71,12 @@ export default async function PortalLayout({
               >
                 Returns
               </Link>
+              <Link
+                href="/portal/profile"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              >
+                Profile
+              </Link>
             </nav>
             <Notifications area="portal" emailConfigured={emailConfig.configured} />
             <div className="hidden text-right sm:block">
@@ -114,6 +120,12 @@ export default async function PortalLayout({
             className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
           >
             Returns
+          </Link>
+          <Link
+            href="/portal/profile"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Profile
           </Link>
         </nav>
       </header>
