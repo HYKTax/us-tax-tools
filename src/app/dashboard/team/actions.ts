@@ -118,12 +118,69 @@ export async function inviteStaff(input: {
   });
 
   if (inviteError) {
+    // Supabase can successfully create/link the Auth user and then fail while
+    // sending the invite email. If our server-controlled invitation was
+    // attached to an active same-firm staff profile, recover by sending a
+    // normal passwordless access link instead of showing a false hard failure.
+    const { data: preparedInvitation } = await supabase
+      .from("staff_invitations")
+      .select("auth_user_id")
+      .eq("id", invitationId)
+      .maybeSingle();
+
+    if (preparedInvitation?.auth_user_id) {
+      const { data: linkedProfile } = await supabase
+        .from("profiles")
+        .select("id, email, firm_id, role, is_active")
+        .eq("id", preparedInvitation.auth_user_id)
+        .maybeSingle();
+
+      if (
+        linkedProfile &&
+        linkedProfile.firm_id === profile.firm_id &&
+        linkedProfile.is_active &&
+        ["firm_admin", "firm_staff"].includes(linkedProfile.role)
+      ) {
+        const { error: accessError } = await supabase.auth.signInWithOtp({
+          email: linkedProfile.email,
+          options: {
+            shouldCreateUser: false,
+            emailRedirectTo: siteUrl + "/auth/confirm?next=/dashboard",
+          },
+        });
+
+        if (!accessError) {
+          await supabase.from("audit_log").insert({
+            firm_id: profile.firm_id,
+            actor_id: profile.id,
+            action: "staff.invite_recovered_with_access_link",
+            target_type: "profile",
+            target_id: linkedProfile.id,
+            metadata: { invitation_id: invitationId },
+          });
+
+          revalidatePath("/dashboard/team");
+          return {
+            success: true,
+            message:
+              "The staff account was created. The invite email did not complete, so a secure access link was sent instead.",
+            cooldownSeconds: 60,
+          };
+        }
+
+        const accessFailure = authEmailFailure(accessError, "staff");
+        revalidatePath("/dashboard/team");
+        return {
+          error: accessFailure.error,
+          cooldownSeconds: accessFailure.cooldownSeconds,
+        };
+      }
+    }
+
     const failure = authEmailFailure(inviteError, "staff");
     revalidatePath("/dashboard/team");
     return {
-      error:
-        failure.error ??
-        "The staff record was prepared, but the invitation email could not be sent.",
+      error: failure.error,
       cooldownSeconds: failure.cooldownSeconds,
     };
   }
