@@ -1,6 +1,6 @@
 import { Notifications } from "@/components/notifications";
 import { Brand } from "@/components/brand";
-import { notificationEmailConfigured } from "@/lib/email";
+import { notificationEmailConfigStatus } from "@/lib/email";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions";
 import { getCurrentProfile } from "@/lib/auth";
@@ -15,6 +15,7 @@ export default async function PortalLayout({
   if (!profile) redirect("/login");
   if (!profile.is_active) redirect("/auth/access-disabled");
   if (profile.role !== "client") redirect("/dashboard");
+  const emailConfig = notificationEmailConfigStatus();
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -22,7 +23,7 @@ export default async function PortalLayout({
         <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Brand />
           <div className="flex items-center gap-2 sm:gap-3">
-            <Notifications area="portal" emailConfigured={notificationEmailConfigured()} />
+            <Notifications area="portal" emailConfigured={emailConfig.configured} />
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium text-slate-900">{profile.full_name}</p>
               <p className="text-xs text-slate-500">Client portal</p>
