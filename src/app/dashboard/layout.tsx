@@ -66,6 +66,7 @@ export default async function DashboardLayout({
             <Link href="/dashboard/templates" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Templates</Link>
             {canViewActivity && (
               <>
+                <Link href="/dashboard/analytics" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Analytics</Link>
                 <Link href="/dashboard/workload" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Workload</Link>
                 <Link href="/dashboard/activity" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Activity</Link>
               </>
