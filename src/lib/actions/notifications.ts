@@ -28,3 +28,13 @@ export async function markNotificationRead(id: string) {
   const { error } = await supabase.rpc("mark_notification_read", { p_id: id });
   return { error: error ? "Unable to mark notification read." : undefined };
 }
+
+
+export async function markAllNotificationsRead() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("mark_all_notifications_read");
+  return {
+    count: typeof data === "number" ? data : 0,
+    error: error ? "Unable to mark notifications read." : undefined,
+  };
+}
