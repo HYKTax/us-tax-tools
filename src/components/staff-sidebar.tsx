@@ -5,6 +5,7 @@ const baseNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: "grid" },
   { href: "/dashboard/work", label: "Work / Returns", icon: "work" },
   { href: "/dashboard/deadlines", label: "Deadlines", icon: "calendar" },
+  { href: "/dashboard/tasks", label: "Tasks", icon: "tasks" },
   { href: "/dashboard/clients", label: "Clients", icon: "users" },
   { href: "/dashboard/documents", label: "Documents", icon: "folder" },
   { href: "/dashboard/messages", label: "Messages", icon: "message" },
@@ -35,6 +36,10 @@ function Icon({ name }: { name: string }) {
 
   if (name === "work") {
     return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/></svg>;
+  }
+
+  if (name === "tasks") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 9 1.5 1.5L12 8M14 9h3M8 15l1.5 1.5L12 14M14 15h3"/></svg>;
   }
 
   if (name === "calendar") {
