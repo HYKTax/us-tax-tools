@@ -204,12 +204,14 @@ test('database authorization and organizer lifecycle', async () => {
     assert.equal((await db.query("select file_size_limit from storage.buckets where id='client-documents'")).rows[0].file_size_limit, 20971520);
     await asUser(id(10), `
       insert into organizer_templates(id,firm_id,name,tax_year,created_by)
-      values ('${id(50)}','${id(1)}','1040 Annual Organizer',2025,'${id(10)}');
+      values ('${id(50)}','${id(1)}','1040 Annual Organizer',2025,'${id(10)}')
+    `);
+    await asUser(id(10), `
       insert into organizer_template_items(
         id,template_id,sort_order,section_title,prompt,response_type,is_required
       ) values (
         '${id(51)}','${id(50)}',0,'Income','Upload W-2','file',true
-      );
+      )
     `);
     const duplicatedTemplateId = (await asUser(
       id(10),
