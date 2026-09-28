@@ -39,7 +39,7 @@ export default async function DocumentDetailPage({
   const { data: document, error } = await supabase
     .from("documents")
     .select(
-      "id, firm_id, client_id, organizer_id, tax_return_job_id, file_name, storage_path, mime_type, size_bytes, status, created_at, clients!documents_client_id_fkey(primary_contact_name, email), organizer:organizers(id,title,status), tax_return_job:tax_return_jobs(id,tax_year,return_type,status)"
+      "id, firm_id, client_id, organizer_id, tax_return_job_id, document_kind, client_visible, released_at, file_name, storage_path, mime_type, size_bytes, status, created_at, clients!documents_client_id_fkey(primary_contact_name, email), organizer:organizers(id,title,status), tax_return_job:tax_return_jobs(id,tax_year,return_type,status)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -77,6 +77,7 @@ export default async function DocumentDetailPage({
     status: string;
   } | null;
 
+  const isReturnCopy = document.document_kind === "return_copy";
   const fields = Array.isArray(extraction?.fields) ? (extraction.fields as ExtractedField[]) : [];
   const flags = Array.isArray(extraction?.flags) ? (extraction.flags as string[]) : [];
   const aiConfigured = Boolean(process.env.OPENAI_API_KEY);
@@ -89,7 +90,9 @@ export default async function DocumentDetailPage({
         </Link>
         <div className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-blue-600">Document review</p>
+            <p className="text-sm font-semibold text-blue-600">
+              {isReturnCopy ? "Client delivery document" : "Document review"}
+            </p>
             <h1 className="mt-1 truncate text-3xl font-semibold tracking-tight text-slate-950">{document.file_name}</h1>
             <p className="mt-2 text-slate-500">
               {client?.primary_contact_name ?? "Client"} · Uploaded {new Date(document.created_at).toLocaleDateString()}
@@ -106,8 +109,14 @@ export default async function DocumentDetailPage({
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
               <div>
-                <h2 className="font-semibold text-slate-950">Source document</h2>
-                <p className="mt-1 text-sm text-slate-500">Always verify AI-extracted values against the original document.</p>
+                <h2 className="font-semibold text-slate-950">
+                  {isReturnCopy ? "Final return copy" : "Source document"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {isReturnCopy
+                    ? "This PDF is a delivery artifact and is excluded from AI extraction and source-data review."
+                    : "Always verify AI-extracted values against the original document."}
+                </p>
               </div>
               {signedDocument?.url ? (
                 <a
@@ -156,6 +165,7 @@ export default async function DocumentDetailPage({
             )}
           </section>
 
+          {!isReturnCopy && (
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
               <div>
@@ -262,9 +272,33 @@ export default async function DocumentDetailPage({
               </>
             )}
           </section>
+          )}
         </div>
 
         <div className="flex flex-col gap-6">
+          {isReturnCopy ? (
+            <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
+              <h2 className="font-semibold text-slate-950">Client delivery</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {document.client_visible
+                  ? "This final return PDF is currently released to the client portal."
+                  : "This final return PDF is private to firm staff."}
+              </p>
+              {document.released_at && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Released {new Date(document.released_at).toLocaleString()}
+                </p>
+              )}
+              {linkedReturn && (
+                <Link
+                  href={`/dashboard/work/${linkedReturn.id}`}
+                  className="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800"
+                >
+                  Manage delivery in return workspace →
+                </Link>
+              )}
+            </section>
+          ) : (
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="font-semibold text-slate-950">Review controls</h2>
             <p className="mt-1 text-sm text-slate-500">Link, extract, verify, and complete document review.</p>
@@ -285,13 +319,16 @@ export default async function DocumentDetailPage({
               />
             </div>
           </section>
+          )}
 
+          {!isReturnCopy && (
           <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
             <h2 className="font-semibold text-slate-950">Human-review rule</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               AI output is treated as draft source-document data. Staff should compare each material value to the original file before using it in preparation or marking the document reviewed.
             </p>
           </section>
+          )}
         </div>
       </section>
     </div>
