@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { createDocumentRequestsBatch } from "../actions";
+import { documentRequestPresets } from "@/lib/document-request-presets";
 
 type ClientOption = {
   id: string;
@@ -63,6 +64,27 @@ export function BatchDocumentRequestForm({
         <p className="mt-1 text-sm text-slate-500">
           The same request will be sent securely to every selected client.
         </p>
+
+        <div className="mt-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Quick presets
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {documentRequestPresets.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  setTitle(preset.title);
+                  setDetails(preset.details);
+                }}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <label className="mt-5 block text-sm font-medium text-slate-700">
           What do you need?
