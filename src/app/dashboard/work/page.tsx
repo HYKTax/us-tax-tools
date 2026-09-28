@@ -61,7 +61,21 @@ function priorityLabel(priority: string) {
   return "Normal";
 }
 
-export default async function WorkPage() {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+export default async function WorkPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const filters = await searchParams;
+  const query = firstParam(filters.q).trim().toLowerCase();
+  const statusFilter = firstParam(filters.status);
+  const priorityFilter = firstParam(filters.priority);
+  const ownerFilter = firstParam(filters.owner);
+  const yearFilter = firstParam(filters.year);
   const profile = await getCurrentProfile();
   const supabase = await createClient();
   const canReviewReturns = Boolean(
@@ -76,7 +90,7 @@ export default async function WorkPage() {
     )
     .order("due_date", { ascending: true, nullsFirst: false })
     .order("updated_at", { ascending: false })
-    .limit(250),
+    .limit(500),
     canReviewReturns && profile
       ? supabase
           .from("tax_return_reviews")
@@ -90,19 +104,68 @@ export default async function WorkPage() {
       : Promise.resolve({ data: [], error: null }),
   ]);
 
-  const rows = (data ?? []) as unknown as WorkRow[];
+  const allRows = (data ?? []) as unknown as WorkRow[];
   const myReviews = (reviewResult.data ?? []) as unknown as ReviewQueueRow[];
+
+  const rows = allRows.filter((row) => {
+    if (query) {
+      const searchable = [
+        row.clients?.primary_contact_name ?? "",
+        row.return_type,
+        String(row.tax_year),
+        row.preparer?.full_name ?? "",
+        row.reviewer?.full_name ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!searchable.includes(query)) return false;
+    }
+    if (statusFilter && row.status !== statusFilter) return false;
+    if (priorityFilter && row.priority !== priorityFilter) return false;
+    if (yearFilter && String(row.tax_year) !== yearFilter) return false;
+    if (ownerFilter === "mine" && profile) {
+      if (row.preparer_id !== profile.id && row.reviewer_id !== profile.id) return false;
+    }
+    if (ownerFilter === "unassigned") {
+      if (row.preparer_id || row.reviewer_id) return false;
+    }
+    return true;
+  });
+
   const myPreparation = profile
-    ? rows.filter(
+    ? allRows.filter(
         (row) =>
           row.preparer_id === profile.id &&
           !["review", "ready_to_file", "e_filed", "accepted", "completed"].includes(row.status)
       )
     : [];
-  const waiting = rows.filter((row) => row.status === "waiting_on_client").length;
-  const review = rows.filter((row) => row.status === "review").length;
-  const filing = rows.filter((row) => ["ready_to_file", "e_filed", "rejected"].includes(row.status)).length;
-  const completed = rows.filter((row) => ["accepted", "completed"].includes(row.status)).length;
+  const waiting = allRows.filter((row) => row.status === "waiting_on_client").length;
+  const review = allRows.filter((row) => row.status === "review").length;
+  const filing = allRows.filter((row) => ["ready_to_file", "e_filed", "rejected"].includes(row.status)).length;
+  const completed = allRows.filter((row) => ["accepted", "completed"].includes(row.status)).length;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const dueSoonDate = new Date();
+  dueSoonDate.setUTCDate(dueSoonDate.getUTCDate() + 7);
+  const dueSoon = dueSoonDate.toISOString().slice(0, 10);
+  const activeForDeadline = (row: WorkRow) =>
+    !["accepted", "completed"].includes(row.status);
+  const overdue = allRows.filter(
+    (row) => activeForDeadline(row) && row.due_date && row.due_date < today
+  ).length;
+  const dueThisWeek = allRows.filter(
+    (row) =>
+      activeForDeadline(row) &&
+      row.due_date &&
+      row.due_date >= today &&
+      row.due_date <= dueSoon
+  ).length;
+  const availableYears = Array.from(new Set(allRows.map((row) => row.tax_year))).sort(
+    (a, b) => b - a
+  );
+  const hasFilters = Boolean(
+    query || statusFilter || priorityFilter || ownerFilter || yearFilter
+  );
 
   return (
     <div className="flex flex-col gap-7">
@@ -117,6 +180,19 @@ export default async function WorkPage() {
         <Link href="/dashboard/clients" className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
           Create return from client
         </Link>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm">
+          <p className="text-sm font-semibold text-red-700">Overdue</p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-red-950">{overdue}</p>
+          <p className="mt-1 text-xs text-red-700">Open returns past their target due date</p>
+        </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <p className="text-sm font-semibold text-amber-700">Due in 7 days</p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-amber-950">{dueThisWeek}</p>
+          <p className="mt-1 text-xs text-amber-700">Open returns approaching their target due date</p>
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
@@ -261,13 +337,94 @@ export default async function WorkPage() {
         </section>
       )}
 
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="font-semibold text-slate-950">Filter return queue</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Search clients and narrow the firm queue without changing workflow data.
+            </p>
+          </div>
+          {hasFilters && (
+            <Link
+              href="/dashboard/work"
+              className="w-fit text-sm font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Clear filters
+            </Link>
+          )}
+        </div>
+        <form action="/dashboard/work" method="get" className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <input
+            name="q"
+            defaultValue={firstParam(filters.q)}
+            placeholder="Client, return, staff…"
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 xl:col-span-2"
+          />
+          <select
+            name="status"
+            defaultValue={statusFilter}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">All stages</option>
+            <option value="waiting_on_client">Waiting on client</option>
+            <option value="ready_to_prepare">Ready to prepare</option>
+            <option value="preparing">Preparing</option>
+            <option value="review">In review</option>
+            <option value="waiting_on_signature">Waiting on signature</option>
+            <option value="ready_to_file">Ready to file</option>
+            <option value="e_filed">E-filed</option>
+            <option value="rejected">Rejected</option>
+            <option value="extended">Extended</option>
+            <option value="accepted">Accepted</option>
+            <option value="completed">Completed</option>
+          </select>
+          <select
+            name="priority"
+            defaultValue={priorityFilter}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">All priorities</option>
+            <option value="urgent">Urgent</option>
+            <option value="high">High</option>
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+          </select>
+          <select
+            name="owner"
+            defaultValue={ownerFilter}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">Any owner</option>
+            <option value="mine">Assigned to me</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
+          <select
+            name="year"
+            defaultValue={yearFilter}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">All years</option>
+            {availableYears.map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 md:col-span-2 xl:col-span-1"
+          >
+            Apply filters
+          </button>
+        </form>
+      </section>
+
       {(error || reviewResult.error) && (
         <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           Couldn&apos;t load the work queue: {error?.message ?? reviewResult.error?.message}
         </p>
       )}
 
-      {!error && rows.length === 0 ? (
+      {!error && allRows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
           <h2 className="font-semibold text-slate-900">No tax returns in the queue yet</h2>
           <p className="mt-2 text-sm text-slate-500">Open a client profile and create their first return.</p>
@@ -279,7 +436,9 @@ export default async function WorkPage() {
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="font-semibold text-slate-950">Return queue</h2>
-            <p className="mt-1 text-sm text-slate-500">{rows.length} return{rows.length === 1 ? "" : "s"} visible to your firm.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {rows.length} matching return{rows.length === 1 ? "" : "s"} · {allRows.length} loaded from the firm queue.
+            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -297,7 +456,14 @@ export default async function WorkPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((row) => {
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-5 py-12 text-center">
+                      <p className="font-medium text-slate-800">No returns match these filters</p>
+                      <p className="mt-1 text-sm text-slate-500">Clear or adjust the filters above.</p>
+                    </td>
+                  </tr>
+                ) : rows.map((row) => {
                   const stage = stageFor(row.status);
                   return (
                     <tr key={row.id} className="transition hover:bg-slate-50">
@@ -315,7 +481,22 @@ export default async function WorkPage() {
                       </td>
                       <td className="px-5 py-4 text-slate-600">{row.preparer?.full_name ?? "Unassigned"}</td>
                       <td className="px-5 py-4 text-slate-600">{row.reviewer?.full_name ?? "Unassigned"}</td>
-                      <td className="px-5 py-4 text-slate-600">{row.due_date ? new Date(row.due_date + "T00:00:00").toLocaleDateString() : "—"}</td>
+                      <td className="px-5 py-4">
+                        {row.due_date ? (
+                          <div>
+                            <p className="text-slate-600">{new Date(row.due_date + "T00:00:00").toLocaleDateString()}</p>
+                            {activeForDeadline(row) && row.due_date < today ? (
+                              <span className="mt-1 inline-flex rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                                Overdue
+                              </span>
+                            ) : activeForDeadline(row) && row.due_date <= dueSoon ? (
+                              <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                Due soon
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : "—"}
+                      </td>
                       <td className="px-5 py-4 text-slate-600">{priorityLabel(row.priority)}</td>
                       <td className="px-5 py-4 text-right">
                         <Link href={`/dashboard/work/${row.id}`} className="font-semibold text-blue-600 hover:text-blue-700">Open →</Link>
