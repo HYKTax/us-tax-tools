@@ -1,7 +1,7 @@
 import { Notifications } from "@/components/notifications";
 import { StaffSidebar } from "@/components/staff-sidebar";
 import { Brand } from "@/components/brand";
-import { notificationEmailConfigured } from "@/lib/email";
+import { notificationEmailConfigStatus } from "@/lib/email";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions";
@@ -21,6 +21,7 @@ export default async function DashboardLayout({
 
   const canViewActivity = hasStaffPermission(profile, "audit.view");
   const canManageTeam = hasStaffPermission(profile, "team.manage");
+  const emailConfig = notificationEmailConfigStatus();
 
   return (
     <div className="min-h-screen bg-slate-50 lg:flex">
@@ -37,7 +38,11 @@ export default async function DashboardLayout({
               <span className="text-slate-500">{staffRoleLabel(profile.staff_role)}</span>
             </nav>
             <div className="flex items-center gap-2 sm:gap-3">
-              <Notifications area="dashboard" emailConfigured={notificationEmailConfigured()} />
+              <Notifications
+                area="dashboard"
+                emailConfigured={emailConfig.configured}
+                emailMissing={emailConfig.missing}
+              />
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-medium text-slate-900">{profile.full_name}</p>
                 <p className="text-xs text-slate-500">{profile.email}</p>
