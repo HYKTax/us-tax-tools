@@ -5,6 +5,7 @@ import { InviteButton, SendOrganizerForm } from "./client-actions";
 import { CreateReturnJobForm } from "@/app/dashboard/work/create-return-job-form";
 import { canBePreparer, canBeReviewer, hasStaffPermission, type StaffOperationalRole } from "@/lib/staff-permissions";
 import { getCurrentProfile } from "@/lib/auth";
+import { StaffDocumentUploader } from "./staff-document-uploader";
 
 type OrganizerRow = {
   id: string;
@@ -53,6 +54,7 @@ export default async function ClientDetailPage({
   if (!profile) notFound();
   const canManageClients = hasStaffPermission(profile, "clients.manage");
   const canManageOrganizers = hasStaffPermission(profile, "organizers.manage");
+  const canManageDocuments = hasStaffPermission(profile, "documents.manage");
   const supabase = await createClient();
 
   const { data: client } = await supabase
@@ -241,6 +243,10 @@ export default async function ClientDetailPage({
         </div>
       </section>
 
+      {canManageDocuments && (
+        <StaffDocumentUploader firmId={profile.firm_id} clientId={client.id} />
+      )}
+
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4">
           <h2 className="font-semibold text-slate-950">Recent documents</h2>
@@ -251,15 +257,22 @@ export default async function ClientDetailPage({
         ) : (
           <div className="divide-y divide-slate-100">
             {documents.map((document) => (
-              <div key={document.id} className="flex items-center justify-between gap-4 px-5 py-4">
+              <Link
+                key={document.id}
+                href={`/dashboard/documents/${document.id}`}
+                className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50"
+              >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-slate-900">{document.file_name}</p>
                   <p className="mt-1 text-xs text-slate-500">{new Date(document.created_at).toLocaleDateString()}</p>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${badge(document.status)}`}>
-                  {document.status.replace("_", " ")}
-                </span>
-              </div>
+                <div className="flex items-center gap-3">
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${badge(document.status)}`}>
+                    {document.status.replace("_", " ")}
+                  </span>
+                  <span className="text-sm font-semibold text-blue-600">Open →</span>
+                </div>
+              </Link>
             ))}
           </div>
         )}
