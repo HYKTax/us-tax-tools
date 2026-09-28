@@ -175,6 +175,54 @@ test('database authorization and organizer lifecycle', async () => {
       true
     );
 
+    const assignedTag = (await asUser(
+      id(10),
+      `select (assign_client_tag('${id(20)}','Extension')).id as id`
+    )).rows[0].id;
+    assert.ok(assignedTag);
+    assert.equal(
+      (await asUser(
+        id(10),
+        `select count(*)::int as n from client_tag_assignments
+         where client_id='${id(20)}' and tag_id='${assignedTag}'`
+      )).rows[0].n,
+      1
+    );
+    assert.equal(
+      (await asUser(id(11), `select id from client_tags`)).rows.length,
+      0
+    );
+    assert.equal(
+      (await asUser(id(11), `select tag_id from client_tag_assignments`)).rows.length,
+      0
+    );
+    await denied(
+      id(11),
+      `select assign_client_tag('${id(20)}','Client tag')`,
+      /Not authorized/
+    );
+    await denied(
+      id(14),
+      `select assign_client_tag('${id(20)}','Reviewer tag')`,
+      /Not authorized/
+    );
+    await denied(
+      id(10),
+      `select assign_client_tag('${id(21)}','Cross firm')`,
+      /Client not found/
+    );
+    await asUser(
+      id(10),
+      `select remove_client_tag('${id(20)}','${assignedTag}')`
+    );
+    assert.equal(
+      (await db.query(
+        `select count(*)::int as n from client_tag_assignments
+         where client_id='${id(20)}' and tag_id='${assignedTag}'`
+      )).rows[0].n,
+      0
+    );
+
     await asUser(id(10), `
       insert into staff_tasks(
         id,firm_id,client_id,title,priority,due_date,assigned_to,created_by
