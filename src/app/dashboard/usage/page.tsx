@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -129,7 +130,7 @@ export default async function UsagePage() {
               {summary.top_storage_clients.map((client) => (
                 <Link
                   key={client.id}
-                  href={"/dashboard/clients/" + client.id}
+                  href={("/dashboard/clients/" + client.id) as Route}
                   className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50"
                 >
                   <div>
@@ -155,7 +156,7 @@ export default async function UsagePage() {
               {summary.largest_files.map((file) => (
                 <Link
                   key={file.id}
-                  href={"/dashboard/documents/" + file.id}
+                  href={("/dashboard/documents/" + file.id) as Route}
                   className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50"
                 >
                   <div className="min-w-0">
