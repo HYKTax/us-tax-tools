@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -54,14 +55,24 @@ export default async function EngagementsPage() {
 
   return (
     <div className="flex flex-col gap-7">
-      <section>
-        <p className="text-sm font-semibold text-blue-600">Client onboarding</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
-          Engagements
-        </h1>
-        <p className="mt-2 max-w-3xl text-slate-500">
-          Reusable engagement text, secure client delivery, and portal acknowledgment tracking.
-        </p>
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-semibold text-blue-600">Client onboarding</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
+            Engagements
+          </h1>
+          <p className="mt-2 max-w-3xl text-slate-500">
+            Reusable engagement text, secure client delivery, and portal acknowledgment tracking.
+          </p>
+        </div>
+        {canManageClients && (
+          <Link
+            href="/dashboard/engagements/batch"
+            className="w-fit rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+          >
+            Batch send
+          </Link>
+        )}
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
