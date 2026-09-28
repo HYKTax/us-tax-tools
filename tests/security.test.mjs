@@ -534,10 +534,19 @@ test('database authorization and organizer lifecycle', async () => {
       `select create_document_request('${id(20)}','Client bypass',null,null)`,
       /Not authorized/
     );
-    await denied(
+    const directRequestUpdate = await asUser(
       id(11),
-      `update document_requests set status='cancelled' where id='${documentRequestId}'`,
-      /row-level security|permission denied/
+      `update document_requests
+       set status='cancelled'
+       where id='${documentRequestId}'
+       returning id`
+    );
+    assert.equal(directRequestUpdate.rows.length,0);
+    assert.equal(
+      (await db.query(
+        `select status from document_requests where id='${documentRequestId}'`
+      )).rows[0].status,
+      'open'
     );
 
     assert.equal(
