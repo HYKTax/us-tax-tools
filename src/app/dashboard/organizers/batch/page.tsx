@@ -10,7 +10,12 @@ export default async function BatchOrganizerPage() {
   if (!profile || !hasStaffPermission(profile, "organizers.manage")) notFound();
 
   const supabase = await createClient();
-  const [{ data: clients }, { data: templates }] = await Promise.all([
+  const [
+    { data: clients },
+    { data: templates },
+    { data: tags },
+    { data: tagAssignments },
+  ] = await Promise.all([
     supabase
       .from("clients")
       .select("id,primary_contact_name,email,client_type")
@@ -23,7 +28,28 @@ export default async function BatchOrganizerPage() {
       .order("tax_year", { ascending: false })
       .order("name")
       .limit(200),
+    supabase
+      .from("client_tags")
+      .select("id,name")
+      .order("name")
+      .limit(200),
+    supabase
+      .from("client_tag_assignments")
+      .select("client_id,tag_id")
+      .limit(5000),
   ]);
+
+  const tagIdsByClient = new Map<string, string[]>();
+  for (const assignment of tagAssignments ?? []) {
+    const current = tagIdsByClient.get(assignment.client_id) ?? [];
+    current.push(assignment.tag_id);
+    tagIdsByClient.set(assignment.client_id, current);
+  }
+
+  const enrichedClients = (clients ?? []).map((client) => ({
+    ...client,
+    tag_ids: tagIdsByClient.get(client.id) ?? [],
+  }));
 
   return (
     <div className="flex flex-col gap-7">
@@ -44,8 +70,9 @@ export default async function BatchOrganizerPage() {
       </section>
 
       <BatchOrganizerSender
-        clients={clients ?? []}
+        clients={enrichedClients}
         templates={templates ?? []}
+        tags={tags ?? []}
       />
     </div>
   );
