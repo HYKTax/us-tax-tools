@@ -88,7 +88,11 @@ export function ClientCsvImporter() {
         throw new Error("CSV must include a header row and at least one client.");
       }
 
-      const headers = table[0].map(normalizeHeader);
+      const headerRow = table[0];
+      if (!headerRow) {
+        throw new Error("CSV header row is missing.");
+      }
+      const headers = headerRow.map(normalizeHeader);
       for (const required of requiredHeaders) {
         if (!headers.includes(required)) {
           throw new Error(`Missing required column: ${required}`);
