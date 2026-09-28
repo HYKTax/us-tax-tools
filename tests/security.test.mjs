@@ -76,6 +76,32 @@ test('database authorization and organizer lifecycle', async () => {
     await denied(id(11), `insert into storage.objects(bucket_id,name) values ('client-documents','${id(2)}/${id(20)}/bad.pdf')`, /row-level security/);
     await asUser(id(11), `insert into storage.objects(bucket_id,name) values ('client-documents','${path}')`);
     await asUser(id(11), `insert into documents(firm_id,client_id,organizer_id,organizer_item_id,uploaded_by,storage_path,file_name) values ('${id(1)}','${id(20)}','${id(30)}','${id(41)}','${id(11)}','${path}','test.pdf')`);
+
+    const generalPath = `${id(1)}/${id(20)}/general/general.pdf`;
+    await asUser(id(11), `insert into storage.objects(bucket_id,name) values ('client-documents','${generalPath}')`);
+    await asUser(id(11), `
+      insert into documents(
+        id,firm_id,client_id,uploaded_by,storage_path,file_name,mime_type,size_bytes,document_kind
+      ) values (
+        '${id(61)}','${id(1)}','${id(20)}','${id(11)}',
+        '${generalPath}','general.pdf','application/pdf',500,'source'
+      )
+    `);
+    const generalDocument = (await asUser(
+      id(11),
+      `select id,client_visible,organizer_id from documents where id='${id(61)}'`
+    )).rows[0];
+    assert.equal(generalDocument.client_visible, true);
+    assert.equal(generalDocument.organizer_id, null);
+    assert.equal(
+      (await asUser(id(12), `select id from documents where id='${id(61)}'`)).rows.length,
+      0
+    );
+    assert.equal(
+      (await asUser(id(12), `select name from storage.objects where name='${generalPath}'`)).rows.length,
+      0
+    );
+
     await asUser(id(11), `select submit_organizer('${id(30)}')`);
     await denied(id(11), `select save_organizer_response('${id(40)}','"Changed"')`, /no longer accepting/);
     await denied(id(11), `select submit_organizer('${id(30)}')`, /submittable state/);
@@ -398,6 +424,26 @@ test('database authorization and organizer lifecycle', async () => {
         'accepted'
       )
     `);
+
+    const clientStatus = (await asUser(
+      id(11),
+      `select * from get_client_return_status() where id='${returnJobId}'`
+    )).rows[0];
+    assert.ok(clientStatus);
+    assert.equal(clientStatus.client_stage, 'accepted');
+    assert.equal(clientStatus.return_type, '1040');
+    assert.equal('preparer_id' in clientStatus, false);
+    assert.equal('reviewer_id' in clientStatus, false);
+    assert.equal('priority' in clientStatus, false);
+    assert.equal(
+      (await asUser(id(12), `select * from get_client_return_status()`)).rows.length,
+      0
+    );
+    await denied(
+      id(10),
+      `select * from get_client_return_status()`,
+      /Client account required/
+    );
 
     await asUser(
       id(14),
