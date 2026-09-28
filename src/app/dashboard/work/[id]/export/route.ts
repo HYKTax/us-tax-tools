@@ -3,6 +3,8 @@ import { NextRequest } from "next/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { hasStaffPermission } from "@/lib/staff-permissions";
 import { createClient } from "@/lib/supabase/server";
+export const runtime = "nodejs";
+
 import {
   buildTaxSoftwareExport,
   taxSoftwareExportCsv,
