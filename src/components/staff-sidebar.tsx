@@ -16,6 +16,7 @@ const baseNavItems = [
 const workloadNavItem = { href: "/dashboard/workload", label: "Team workload", icon: "workload" } as const;
 const activityNavItem = { href: "/dashboard/activity", label: "Activity", icon: "activity" } as const;
 const adminNavItem = { href: "/dashboard/team", label: "Team", icon: "users" } as const;
+const settingsNavItem = { href: "/dashboard/settings", label: "Settings", icon: "settings" } as const;
 
 function Icon({ name }: { name: string }) {
   const common = "h-4 w-4";
@@ -52,6 +53,10 @@ function Icon({ name }: { name: string }) {
     return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M4 19V11M10 19V5M16 19v-9M22 19V8"/><path d="M2 19h20"/></svg>;
   }
 
+  if (name === "settings") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.38.33.72.6 1 .3.28.68.43 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z"/></svg>;
+  }
+
   if (name === "activity") {
     return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="M2 19h20"/></svg>;
   }
@@ -69,7 +74,7 @@ export function StaffSidebar({
   const navItems = [
     ...baseNavItems,
     ...(canViewActivity ? [workloadNavItem, activityNavItem] : []),
-    ...(canManageTeam ? [adminNavItem] : []),
+    ...(canManageTeam ? [adminNavItem, settingsNavItem] : []),
   ];
 
   return (
