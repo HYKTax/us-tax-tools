@@ -129,6 +129,14 @@ export default async function ClientsPage({
           </Link>
           {canManageClients && (
             <Link
+              href="/dashboard/clients/import"
+              className="inline-flex w-fit rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+            >
+              Import CSV
+            </Link>
+          )}
+          {canManageClients && (
+            <Link
               href="/dashboard/clients/new"
               className="inline-flex w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
