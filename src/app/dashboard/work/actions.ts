@@ -268,3 +268,55 @@ export async function createTaxReturnJobsBatch(input: {
         : "."),
   };
 }
+
+
+export async function bulkUpdateTaxReturnJobs(input: {
+  jobIds: string[];
+  priority?: string;
+  preparerMode: "keep" | "set" | "clear";
+  preparerId?: string;
+  reviewerMode: "keep" | "set" | "clear";
+  reviewerId?: string;
+  dueDateMode: "keep" | "set" | "clear";
+  dueDate?: string;
+}): Promise<ReturnActionResult & { updated?: number }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !hasStaffPermission(profile, "returns.manage")) {
+    return { error: "Your role cannot manage tax-return workflow." };
+  }
+
+  const jobIds = Array.from(new Set(input.jobIds)).filter(Boolean);
+  if (jobIds.length === 0) return { error: "Select at least one tax return." };
+  if (jobIds.length > 200) return { error: "Update no more than 200 tax returns at a time." };
+
+  if (input.priority && !priorities.has(input.priority)) {
+    return { error: "Choose a valid priority." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("bulk_update_tax_return_jobs", {
+    p_job_ids: jobIds,
+    p_priority: input.priority || null,
+    p_preparer_mode: input.preparerMode,
+    p_preparer_id: input.preparerMode === "set" ? input.preparerId || null : null,
+    p_reviewer_mode: input.reviewerMode,
+    p_reviewer_id: input.reviewerMode === "set" ? input.reviewerId || null : null,
+    p_due_date_mode: input.dueDateMode,
+    p_due_date: input.dueDateMode === "set" ? input.dueDate || null : null,
+  });
+
+  if (error) return { error: error.message };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const updated = Number(row?.updated_count ?? 0);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/work");
+  revalidatePath("/dashboard/deadlines");
+
+  return {
+    success: true,
+    updated,
+    message: `Updated ${updated} tax return${updated === 1 ? "" : "s"}.`,
+  };
+}
