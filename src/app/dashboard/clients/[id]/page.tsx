@@ -12,6 +12,7 @@ import {
   type ClientContactValues,
 } from "@/components/client-contact-form";
 import { ClientTags, type ClientTagView } from "./client-tags";
+import { ClientLifecycleButton } from "./client-lifecycle-button";
 
 type OrganizerRow = {
   id: string;
@@ -254,7 +255,12 @@ export default async function ClientDetailPage({
               Message client
             </Link>
             {canManageClients ? (
-              <InviteButton clientId={client.id} status={client.status} />
+              <>
+                {client.status !== "archived" && (
+                  <InviteButton clientId={client.id} status={client.status} />
+                )}
+                <ClientLifecycleButton clientId={client.id} status={client.status} />
+              </>
             ) : (
               <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
                 Client access: read only
