@@ -102,6 +102,29 @@ test('database authorization and organizer lifecycle', async () => {
       0
     );
 
+    const staffUploadPath = `${id(1)}/${id(20)}/staff-uploads/private-source.pdf`;
+    await asUser(id(10), `insert into storage.objects(bucket_id,name) values ('client-documents','${staffUploadPath}')`);
+    await asUser(id(10), `
+      insert into documents(
+        id,firm_id,client_id,uploaded_by,storage_path,file_name,mime_type,size_bytes,document_kind
+      ) values (
+        '${id(62)}','${id(1)}','${id(20)}','${id(10)}',
+        '${staffUploadPath}','private-source.pdf','application/pdf',750,'source'
+      )
+    `);
+    assert.equal(
+      (await asUser(id(10), `select id,client_visible from documents where id='${id(62)}'`)).rows[0].client_visible,
+      false
+    );
+    assert.equal(
+      (await asUser(id(11), `select id from documents where id='${id(62)}'`)).rows.length,
+      0
+    );
+    assert.equal(
+      (await asUser(id(11), `select name from storage.objects where name='${staffUploadPath}'`)).rows.length,
+      0
+    );
+
     await asUser(id(11), `select submit_organizer('${id(30)}')`);
     await denied(id(11), `select save_organizer_response('${id(40)}','"Changed"')`, /no longer accepting/);
     await denied(id(11), `select submit_organizer('${id(30)}')`, /submittable state/);
@@ -149,6 +172,38 @@ test('database authorization and organizer lifecycle', async () => {
     await db.exec("update otp_request_log set requested_at=now()-interval '61 seconds'");
     assert.equal((await asUser(null, `select reserve_otp_request('${hash}') as reserved`, 'service_role')).rows[0].reserved, true);
     assert.equal((await db.query("select file_size_limit from storage.buckets where id='client-documents'")).rows[0].file_size_limit, 20971520);
+    await asUser(id(10), `
+      insert into organizer_templates(id,firm_id,name,tax_year,created_by)
+      values ('${id(50)}','${id(1)}','1040 Annual Organizer',2025,'${id(10)}');
+      insert into organizer_template_items(
+        id,template_id,sort_order,section_title,prompt,response_type,is_required
+      ) values (
+        '${id(51)}','${id(50)}',0,'Income','Upload W-2','file',true
+      );
+    `);
+    const duplicatedTemplateId = (await asUser(
+      id(10),
+      `select duplicate_organizer_template('${id(50)}',2026) as id`
+    )).rows[0].id;
+    const duplicatedTemplate = (await db.query(
+      `select firm_id,name,tax_year from organizer_templates where id='${duplicatedTemplateId}'`
+    )).rows[0];
+    assert.equal(duplicatedTemplate.firm_id,id(1));
+    assert.equal(duplicatedTemplate.name,'1040 Annual Organizer');
+    assert.equal(duplicatedTemplate.tax_year,2026);
+    const duplicatedItem = (await db.query(
+      `select section_title,prompt,response_type,is_required from organizer_template_items where template_id='${duplicatedTemplateId}'`
+    )).rows[0];
+    assert.equal(duplicatedItem.section_title,'Income');
+    assert.equal(duplicatedItem.prompt,'Upload W-2');
+    assert.equal(duplicatedItem.response_type,'file');
+    assert.equal(duplicatedItem.is_required,true);
+    await denied(
+      id(11),
+      `select duplicate_organizer_template('${id(50)}',2027)`,
+      /Not authorized/
+    );
+
     await denied(id(11), `select prepare_client_invitation('${id(20)}')`, /Not authorized/);
     await denied(id(10), `select prepare_client_invitation('${id(21)}')`, /Client not found/);
     assert.equal((await asUser(id(10), `select prepare_client_invitation('${id(20)}') as mode`)).rows[0].mode,'signin');
