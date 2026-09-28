@@ -2,10 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Refreshes the Supabase session cookie on every request so it doesn't expire
- * mid-visit. This does NOT gate access to pages — that's intentional: real
- * access control lives in RLS (data) and in each page/action checking
- * supabase.auth.getUser() (routing). Treat this purely as session upkeep.
+ * Refreshes the Supabase session cookie and performs an early session gate
+ * for protected workspaces. Authorization still lives in RLS and page/action
+ * role checks, but anonymous requests are redirected before protected child
+ * pages start database queries.
  *
  * Named `proxy` (not `middleware`) per the Next.js 16 file convention —
  * see https://nextjs.org/docs/app/api-reference/file-conventions/proxy
@@ -53,7 +53,21 @@ export async function proxy(request: NextRequest) {
   // for this refresh-on-every-request spot. Page-level checks that need the
   // full user record still use getUser()/getClaims() again, deliberately —
   // this call's only job is refreshing the cookie.
-  await supabase.auth.getClaims();
+  const { data: claimsData } = await supabase.auth.getClaims();
+
+  const pathname = request.nextUrl.pathname;
+  const protectedWorkspace =
+    pathname === "/dashboard" ||
+    pathname.startsWith("/dashboard/") ||
+    pathname === "/portal" ||
+    pathname.startsWith("/portal/");
+
+  if (protectedWorkspace && !claimsData?.claims?.sub) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.search = "";
+    return NextResponse.redirect(loginUrl);
+  }
 
   return response;
 }
