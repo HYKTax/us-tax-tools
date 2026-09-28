@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,9 +27,12 @@ function statusLabel(status: string) {
 
 export default async function DashboardPage() {
   const profile = await getCurrentProfile();
+  if (!profile) redirect("/login");
   const supabase = await createClient();
 
   const [
+    { count: myPreparation },
+    { count: myReviews },
     { count: activeClients },
     { count: waitingReturns },
     { count: reviewReturns },
@@ -36,6 +40,16 @@ export default async function DashboardPage() {
     { data: recentReturns },
     { data: recentDocuments },
   ] = await Promise.all([
+    supabase
+      .from("tax_return_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("preparer_id", profile.id)
+      .not("status", "in", '("review","ready_to_file","e_filed","accepted","completed")'),
+    supabase
+      .from("tax_return_reviews")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_reviewer_id", profile.id)
+      .eq("status", "requested"),
     supabase.from("clients").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("tax_return_jobs").select("id", { count: "exact", head: true }).eq("status", "waiting_on_client"),
     supabase.from("tax_return_jobs").select("id", { count: "exact", head: true }).eq("status", "review"),
@@ -74,11 +88,36 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section>
+        <div className="mb-3">
+          <h2 className="font-semibold text-slate-950">My workload</h2>
+          <p className="mt-1 text-sm text-slate-500">Assignments currently owned by you.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link href="/dashboard/work" className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm transition hover:bg-blue-100/70">
+            <p className="text-sm font-semibold text-blue-700">Preparation assignments</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-blue-950">{myPreparation ?? 0}</p>
+            <p className="mt-1 text-xs text-blue-700">Returns assigned to you before final review</p>
+          </Link>
+          <Link href="/dashboard/work" className="rounded-2xl border border-violet-200 bg-violet-50 p-5 shadow-sm transition hover:bg-violet-100/70">
+            <p className="text-sm font-semibold text-violet-700">Review assignments</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-violet-950">{myReviews ?? 0}</p>
+            <p className="mt-1 text-xs text-violet-700">Formal return reviews waiting for your sign-off</p>
+          </Link>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3">
+          <h2 className="font-semibold text-slate-950">Firm overview</h2>
+          <p className="mt-1 text-sm text-slate-500">Workload and client activity across the firm.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Active clients" value={activeClients ?? 0} helper="Clients with active portal records" />
         <MetricCard label="Waiting on clients" value={waitingReturns ?? 0} helper="Returns blocked by client action" />
         <MetricCard label="In review" value={reviewReturns ?? 0} helper="Returns awaiting reviewer action" />
         <MetricCard label="New documents" value={pendingDocuments ?? 0} helper="Documents pending staff review" />
+        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
