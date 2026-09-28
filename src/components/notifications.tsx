@@ -119,7 +119,9 @@ export function Notifications({
                 <Link
                   href={
                     row.tax_return_job_id
-                      ? `/dashboard/work/${row.tax_return_job_id}`
+                      ? area === "portal"
+                        ? "/portal/returns"
+                        : `/dashboard/work/${row.tax_return_job_id}`
                       : `/${area}/organizers/${row.organizer_id}`
                   }
                   onClick={() => {
