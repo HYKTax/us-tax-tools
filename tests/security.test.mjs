@@ -51,6 +51,8 @@ test('database authorization and organizer lifecycle', async () => {
       try { return await db.query(sql); } finally { await db.exec('reset role'); }
     }
     const denied = (user, sql, pattern, role) => assert.rejects(asUser(user, sql, role), pattern);
+    await denied(null, `select * from clients`, /permission denied/, 'anon');
+    await denied(null, `select * from documents`, /permission denied/, 'anon');
     await denied(id(11), `update profiles set role='firm_admin' where id='${id(11)}'`, /permission denied|display name can be updated directly/);
     await asUser(id(11), `update profiles set full_name='Updated' where id='${id(11)}'`);
     await denied(id(10), `select admin_update_staff('${id(10)}','firm_admin',true)`, /Only an active firm administrator/);
@@ -86,6 +88,8 @@ test('database authorization and organizer lifecycle', async () => {
     assert.equal((await asUser(id(10), `select * from profiles where id='${id(11)}'`)).rows.length, 0);
     assert.equal((await asUser(id(10), `select * from profiles where id='${id(10)}'`)).rows.length, 1);
     await db.exec(`update profiles set is_active=true where id='${id(10)}'`);
+    assert.ok((await asUser(id(10), `select id from audit_log`)).rows.length >= 0);
+    assert.equal((await asUser(id(11), `select id from audit_log`)).rows.length, 0);
     const documentId = (await db.query('select id from documents limit 1')).rows[0].id;
     await db.query("insert into document_extractions(document_id,status,fields) values ($1,'completed','{}')", [documentId]);
     await denied(id(10), "update document_extractions set fields='{}'", /permission denied/);
