@@ -195,6 +195,29 @@ test('database authorization and organizer lifecycle', async () => {
       ) returning id
     `)).rows[0].id;
 
+    // Repeated normalized fields on different source documents are valid.
+    // Two 1099-INTs should not be treated as conflicting just because both
+    // contain interest_income with different values.
+    await db.exec(`
+      insert into documents(
+        id,firm_id,client_id,uploaded_by,storage_path,file_name,status,tax_return_job_id
+      ) values
+        ('${id(301)}','${id(1)}','${id(20)}','${id(10)}','a/interest-a.pdf','interest-a.pdf','reviewed','${returnJobId}'),
+        ('${id(302)}','${id(1)}','${id(20)}','${id(10)}','a/interest-b.pdf','interest-b.pdf','reviewed','${returnJobId}');
+
+      insert into document_extractions(
+        id,document_id,status,document_type,tax_year,fields,reviewed_by,reviewed_at
+      ) values
+        ('${id(311)}','${id(301)}','completed','1099-INT',2025,'[]','${id(14)}',now()),
+        ('${id(312)}','${id(302)}','completed','1099-INT',2025,'[]','${id(14)}',now());
+
+      insert into tax_return_source_values(
+        firm_id,tax_return_job_id,document_id,extraction_id,field_name,field_label,value,accepted_by
+      ) values
+        ('${id(1)}','${returnJobId}','${id(301)}','${id(311)}','interest_income','Interest income','100.00','${id(14)}'),
+        ('${id(1)}','${returnJobId}','${id(302)}','${id(312)}','interest_income','Interest income','250.00','${id(14)}');
+    `);
+
     await denied(
       id(10),
       `update tax_return_jobs set status='ready_to_file' where id='${returnJobId}'`,
