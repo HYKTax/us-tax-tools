@@ -471,6 +471,55 @@ test('database authorization and organizer lifecycle', async () => {
       /no longer available/
     );
 
+    const engagementBatch = (await asUser(
+      id(10),
+      `select * from send_engagements_batch(
+        array['${id(20)}'::uuid],
+        '${id(130)}'
+      )`
+    )).rows[0];
+    assert.equal(engagementBatch.created_count,1);
+    assert.equal(engagementBatch.skipped_count,0);
+
+    const duplicateEngagementBatch = (await asUser(
+      id(10),
+      `select * from send_engagements_batch(
+        array['${id(20)}'::uuid,'${id(20)}'::uuid],
+        '${id(130)}'
+      )`
+    )).rows[0];
+    assert.equal(duplicateEngagementBatch.created_count,0);
+    assert.equal(duplicateEngagementBatch.skipped_count,1);
+
+    assert.equal(
+      (await asUser(
+        id(11),
+        `select count(*)::int as n
+         from notifications
+         where kind='engagement_sent'
+           and target_client_id='${id(20)}'`
+      )).rows[0].n >= 1,
+      true
+    );
+
+    await denied(
+      id(10),
+      `select * from send_engagements_batch(
+        array['${id(21)}'::uuid],
+        '${id(130)}'
+      )`,
+      /unavailable/
+    );
+
+    await denied(
+      id(14),
+      `select * from send_engagements_batch(
+        array['${id(20)}'::uuid],
+        '${id(130)}'
+      )`,
+      /Not authorized/
+    );
+
     await denied(
       id(14),
       `select send_organizer('${id(20)}','${id(50)}',2026,'Reviewer bypass')`,
