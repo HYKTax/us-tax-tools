@@ -29,9 +29,18 @@ export default async function PortalPage() {
   const supabase = await createClient();
   const profile = await getCurrentProfile();
 
-  const [{ data: organizers, error }, { data: documents }] = await Promise.all([
+  const [
+    { data: organizers, error },
+    { data: documents },
+    { count: releasedReturnCount },
+  ] = await Promise.all([
     supabase.from("organizers").select("id, title, tax_year, status").order("tax_year", { ascending: false }),
     supabase.from("documents").select("id, file_name, created_at").order("created_at", { ascending: false }).limit(5),
+    supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("document_kind", "return_copy")
+      .eq("client_visible", true),
   ]);
 
   const rows = (organizers ?? []) as OrganizerRow[];
@@ -51,6 +60,30 @@ export default async function PortalPage() {
       </section>
 
       {error && <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">Couldn&apos;t load your organizers: {error.message}</p>}
+
+      {(releasedReturnCount ?? 0) > 0 && (
+        <Link
+          href="/portal/returns"
+          className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm transition hover:border-emerald-300"
+        >
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                Secure delivery
+              </span>
+              <h2 className="mt-3 text-lg font-semibold text-emerald-950">
+                Final tax return document{(releasedReturnCount ?? 0) === 1 ? "" : "s"} available
+              </h2>
+              <p className="mt-1 text-sm text-emerald-800">
+                {(releasedReturnCount ?? 0)} released file{(releasedReturnCount ?? 0) === 1 ? "" : "s"} ready in your portal.
+              </p>
+            </div>
+            <span className="text-sm font-semibold text-emerald-700">
+              Open Returns →
+            </span>
+          </div>
+        </Link>
+      )}
 
       {openItems.length > 0 && (
         <section className="grid gap-4 lg:grid-cols-2">
