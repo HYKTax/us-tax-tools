@@ -29,10 +29,16 @@ export default async function DashboardPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const dueSoonDate = new Date();
+  dueSoonDate.setUTCDate(dueSoonDate.getUTCDate() + 7);
+  const dueSoon = dueSoonDate.toISOString().slice(0, 10);
 
   const [
     { count: myPreparation },
     { count: myReviews },
+    { count: overdueReturns },
+    { count: dueSoonReturns },
     { count: activeClients },
     { count: waitingReturns },
     { count: reviewReturns },
@@ -50,6 +56,17 @@ export default async function DashboardPage() {
       .select("id", { count: "exact", head: true })
       .eq("assigned_reviewer_id", profile.id)
       .eq("status", "requested"),
+    supabase
+      .from("tax_return_jobs")
+      .select("id", { count: "exact", head: true })
+      .lt("due_date", today)
+      .not("status", "in", '("accepted","completed")'),
+    supabase
+      .from("tax_return_jobs")
+      .select("id", { count: "exact", head: true })
+      .gte("due_date", today)
+      .lte("due_date", dueSoon)
+      .not("status", "in", '("accepted","completed")'),
     supabase.from("clients").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("tax_return_jobs").select("id", { count: "exact", head: true }).eq("status", "waiting_on_client"),
     supabase.from("tax_return_jobs").select("id", { count: "exact", head: true }).eq("status", "review"),
@@ -84,6 +101,31 @@ export default async function DashboardPage() {
           </Link>
           <Link href="/dashboard/work" className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
             Open work queue
+          </Link>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3">
+          <h2 className="font-semibold text-slate-950">Deadline watch</h2>
+          <p className="mt-1 text-sm text-slate-500">Open returns that need date-driven attention.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link
+            href="/dashboard/work"
+            className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm transition hover:bg-red-100/70"
+          >
+            <p className="text-sm font-semibold text-red-700">Overdue</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-red-950">{overdueReturns ?? 0}</p>
+            <p className="mt-1 text-xs text-red-700">Open returns past their target due date</p>
+          </Link>
+          <Link
+            href="/dashboard/work"
+            className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition hover:bg-amber-100/70"
+          >
+            <p className="text-sm font-semibold text-amber-700">Due in 7 days</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">{dueSoonReturns ?? 0}</p>
+            <p className="mt-1 text-xs text-amber-700">Open returns approaching their target due date</p>
           </Link>
         </div>
       </section>
