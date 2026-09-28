@@ -27,7 +27,8 @@ export function TaxSoftwareExportPanel({
         <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
           Create an audited, reviewer-approved field handoff for ProSeries or Drake.
           This is a reviewable mapping export, not a claim that either vendor accepts a
-          proprietary direct-import file.
+          proprietary direct-import file. Every download is logged with an audit ID and
+          SHA-256 checksum.
         </p>
       </div>
 
