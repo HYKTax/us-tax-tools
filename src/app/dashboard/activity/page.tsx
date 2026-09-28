@@ -82,6 +82,11 @@ function metadataSummary(metadata: Record<string, unknown> | null) {
     "new_status",
     "document_type",
     "field_count",
+    "software",
+    "format",
+    "mapped_count",
+    "unmapped_count",
+    "review_version",
   ];
 
   const parts = allowedKeys
