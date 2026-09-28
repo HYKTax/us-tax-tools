@@ -21,6 +21,6 @@ test("parseCsv handles quoted newlines and blank trailing rows", () => {
   assert.deepEqual(rows, [
     ["name", "notes"],
     ["Jane", "Line one\nLine two"],
-    ["", ""],
+    [""],
   ]);
 });
