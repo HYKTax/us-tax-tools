@@ -120,14 +120,22 @@ export default async function ClientsPage({
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Clients</h1>
           <p className="mt-2 text-slate-500">Manage portal access, organizers, documents, and client activity.</p>
         </div>
-        {canManageClients && (
+        <div className="flex flex-wrap gap-2">
           <Link
-            href="/dashboard/clients/new"
-            className="inline-flex w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+            href="/dashboard/clients/export"
+            className="inline-flex w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
-            + Add client
+            Export CSV
           </Link>
-        )}
+          {canManageClients && (
+            <Link
+              href="/dashboard/clients/new"
+              className="inline-flex w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+            >
+              + Add client
+            </Link>
+          )}
+        </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
