@@ -158,6 +158,24 @@ test('database authorization and organizer lifecycle', async () => {
       (await db.query(`select is_active from profiles where id='${id(11)}'`)).rows[0].is_active,
       false
     );
+    await denied(
+      id(10),
+      `insert into tax_return_jobs(
+        firm_id,client_id,tax_year,return_type,created_by
+      ) values (
+        '${id(1)}','${id(20)}',2026,'1040','${id(10)}'
+      )`,
+      /Archived clients cannot receive new tax-return work/
+    );
+    await denied(
+      id(10),
+      `select post_client_message(
+        '${id(20)}',
+        'Should not send while archived',
+        '${id(405)}'
+      )`,
+      /Archived clients cannot receive new messages/
+    );
     const reactivatedClient = (await asUser(
       id(10),
       `select (set_client_archived('${id(20)}',false)).status as status`
