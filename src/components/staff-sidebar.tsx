@@ -120,8 +120,8 @@ export function StaffSidebar({
           Coming next
         </div>
         <div className="mt-2 flex flex-col gap-1 text-sm text-slate-500">
-          <span className="px-3 py-2">Return delivery / e-signature</span>
-          <span className="px-3 py-2">E-file status integration</span>
+          <span className="px-3 py-2">Form 8879 e-signature integration</span>
+          <span className="px-3 py-2">Direct e-file status integration</span>
         </div>
       </nav>
       <div className="border-t border-white/10 px-5 py-4 text-xs text-slate-500">
