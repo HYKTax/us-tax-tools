@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { createTaxReturnJobsBatch } from "./actions";
+import { createTaxReturnJobsBatch } from "../actions";
 
 type ClientOption = {
   id: string;
