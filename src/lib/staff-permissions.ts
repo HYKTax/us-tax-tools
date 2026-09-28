@@ -10,6 +10,7 @@ export type StaffPermission =
   | "returns.manage"
   | "returns.review"
   | "templates.manage"
+  | "tasks.manage"
   | "team.manage"
   | "audit.view";
 
@@ -51,6 +52,7 @@ const rolePermissions: Record<StaffOperationalRole, ReadonlySet<StaffPermission>
     "returns.manage",
     "returns.review",
     "templates.manage",
+    "tasks.manage",
     "team.manage",
     "audit.view",
   ]),
@@ -64,6 +66,7 @@ const rolePermissions: Record<StaffOperationalRole, ReadonlySet<StaffPermission>
     "returns.manage",
     "returns.review",
     "templates.manage",
+    "tasks.manage",
     "audit.view",
   ]),
   reviewer: new Set<StaffPermission>([
@@ -72,6 +75,7 @@ const rolePermissions: Record<StaffOperationalRole, ReadonlySet<StaffPermission>
     "documents.review",
     "returns.manage",
     "returns.review",
+    "tasks.manage",
   ]),
   preparer: new Set<StaffPermission>([
     "clients.manage",
@@ -79,6 +83,7 @@ const rolePermissions: Record<StaffOperationalRole, ReadonlySet<StaffPermission>
     "documents.manage",
     "ai.run",
     "returns.manage",
+    "tasks.manage",
   ]),
 };
 
