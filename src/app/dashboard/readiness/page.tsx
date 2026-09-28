@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -263,7 +264,7 @@ export default async function ReadinessPage() {
                 key: job.id,
                 title: job.clients?.primary_contact_name ?? "Client",
                 detail: `${job.tax_year} ${job.return_type} · ${job.status.replaceAll("_", " ")}`,
-                href: `/dashboard/work/${job.id}`,
+                href: `/dashboard/work/${job.id}` as Route,
               }))}
               more={Math.max(0, missingPreparer.length - 12)}
             />
@@ -289,7 +290,7 @@ export default async function ReadinessPage() {
                 key: document.id,
                 title: document.clients?.primary_contact_name ?? "Client",
                 detail: `${document.file_name} · received ${new Date(document.created_at).toLocaleDateString()}`,
-                href: `/dashboard/documents/${document.id}`,
+                href: `/dashboard/documents/${document.id}` as Route,
               }))}
               more={Math.max(0, oldPendingDocuments.length - 12)}
             />
@@ -302,7 +303,7 @@ export default async function ReadinessPage() {
                 key: client.id,
                 title: client.primary_contact_name,
                 detail: `${client.email} · ${client.client_type}`,
-                href: `/dashboard/clients/${client.id}`,
+                href: `/dashboard/clients/${client.id}` as Route,
               }))}
               more={Math.max(0, noPortalAccess.length - 12)}
             />
@@ -323,7 +324,7 @@ function IssueCard({
   title: string;
   count: number;
   helper: string;
-  href: string;
+  href: Route;
   severity: "red" | "amber" | "clear";
 }) {
   const classes =
@@ -358,7 +359,7 @@ function ExceptionList({
   more,
 }: {
   title: string;
-  rows: Array<{ key: string; title: string; detail: string; href: string }>;
+  rows: Array<{ key: string; title: string; detail: string; href: Route }>;
   more: number;
 }) {
   return (
