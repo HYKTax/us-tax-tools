@@ -13,6 +13,7 @@ const baseNavItems = [
   { href: "/dashboard/requests", label: "Document requests", icon: "request" },
   { href: "/dashboard/messages", label: "Messages", icon: "message" },
   { href: "/dashboard/templates", label: "Templates", icon: "clipboard" },
+  { href: "/dashboard/engagements", label: "Engagements", icon: "clipboard" },
 ] as const;
 
 const readinessNavItem = { href: "/dashboard/readiness", label: "Readiness", icon: "readiness" } as const;
