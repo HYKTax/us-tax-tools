@@ -274,6 +274,58 @@ test('database authorization and organizer lifecycle', async () => {
       /Not authorized/
     );
 
+    await denied(
+      id(14),
+      `select send_organizer('${id(20)}','${id(50)}',2026,'Reviewer bypass')`,
+      /Not authorized to send organizers/
+    );
+
+    const firstOrganizerBatch = (await asUser(
+      id(10),
+      `select * from send_organizers_batch(
+        array['${id(20)}'::uuid],
+        '${id(50)}',
+        2026,
+        '2026 Annual Organizer'
+      )`
+    )).rows[0];
+    assert.equal(firstOrganizerBatch.created_count,1);
+    assert.equal(firstOrganizerBatch.skipped_count,0);
+
+    const duplicateOrganizerBatch = (await asUser(
+      id(10),
+      `select * from send_organizers_batch(
+        array['${id(20)}'::uuid,'${id(20)}'::uuid],
+        '${id(50)}',
+        2026,
+        '2026 Annual Organizer'
+      )`
+    )).rows[0];
+    assert.equal(duplicateOrganizerBatch.created_count,0);
+    assert.equal(duplicateOrganizerBatch.skipped_count,1);
+
+    await denied(
+      id(10),
+      `select * from send_organizers_batch(
+        array['${id(21)}'::uuid],
+        '${id(50)}',
+        2026,
+        'Wrong firm'
+      )`,
+      /unavailable/
+    );
+
+    await denied(
+      id(14),
+      `select * from send_organizers_batch(
+        array['${id(20)}'::uuid],
+        '${id(50)}',
+        2027,
+        'Reviewer batch'
+      )`,
+      /Not authorized to send organizers/
+    );
+
     await denied(id(11), `select prepare_client_invitation('${id(20)}')`, /Not authorized/);
     await denied(id(10), `select prepare_client_invitation('${id(21)}')`, /Client not found/);
     assert.equal((await asUser(id(10), `select prepare_client_invitation('${id(20)}') as mode`)).rows[0].mode,'signin');
