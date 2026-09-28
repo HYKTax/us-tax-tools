@@ -33,6 +33,7 @@ export default async function PortalPage() {
     { data: organizers, error },
     { data: documents },
     { count: releasedReturnCount },
+    { data: firm },
   ] = await Promise.all([
     supabase.from("organizers").select("id, title, tax_year, status").order("tax_year", { ascending: false }),
     supabase.from("documents").select("id, file_name, created_at").order("created_at", { ascending: false }).limit(5),
@@ -41,6 +42,13 @@ export default async function PortalPage() {
       .select("id", { count: "exact", head: true })
       .eq("document_kind", "return_copy")
       .eq("client_visible", true),
+    profile
+      ? supabase
+          .from("firms")
+          .select("name,portal_welcome_message")
+          .eq("id", profile.firm_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
   const rows = (organizers ?? []) as OrganizerRow[];
@@ -58,6 +66,17 @@ export default async function PortalPage() {
             : "You’re all caught up. We’ll show new requests here when your tax professional sends them."}
         </p>
       </section>
+
+      {firm?.portal_welcome_message && (
+        <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+            {firm.name}
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+            {firm.portal_welcome_message}
+          </p>
+        </section>
+      )}
 
       {error && <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">Couldn&apos;t load your organizers: {error.message}</p>}
 
