@@ -496,10 +496,16 @@ test('database authorization and organizer lifecycle', async () => {
         id(11),
         `select count(*)::int as n
          from notifications
-         where kind='engagement_sent'
-           and target_client_id='${id(20)}'`
+         where kind='engagement_sent'`
       )).rows[0].n >= 1,
       true
+    );
+
+    // Recipient scoping comes from RLS; target_client_id is intentionally private.
+    await denied(id(11), 'select target_client_id from notifications', /permission denied/);
+    assert.equal(
+      (await asUser(id(12), `select id from notifications where kind='engagement_sent'`)).rows.length,
+      0
     );
 
     await denied(

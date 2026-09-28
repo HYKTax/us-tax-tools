@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentProfile } from "@/lib/auth";
+import { searchPattern, quoteSearchPattern } from "@/lib/search-pattern";
 import { createClient } from "@/lib/supabase/server";
 
 function firstParam(value: string | string[] | undefined) {
@@ -10,11 +13,15 @@ export default async function GlobalSearchPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/login");
+  if (!profile.is_active) redirect("/auth/access-disabled");
+  if (profile.role === "client") redirect("/portal");
+
   const params = await searchParams;
   const query = firstParam(params.q).trim();
-  const supabase = await createClient();
 
-  if (query.length < 2) {
+  if (query.length < 2 || query.length > 200) {
     return (
       <div className="flex flex-col gap-7">
         <section>
@@ -27,57 +34,45 @@ export default async function GlobalSearchPage({
           </p>
         </section>
 
-        <form action="/dashboard/search" method="get" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="text-sm font-medium text-slate-700">
-            Search the firm workspace
-            <div className="mt-2 flex gap-2">
-              <input
-                name="q"
-                placeholder="Client, email, document, organizer, task…"
-                className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              />
-              <button className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800">
-                Search
-              </button>
-            </div>
-          </label>
-          <p className="mt-2 text-xs text-slate-500">Enter at least 2 characters.</p>
-        </form>
+        <SearchForm query={query} />
+        {query.length > 200 && <p role="alert" className="text-sm text-red-600">Use 200 characters or fewer.</p>}
       </div>
     );
   }
 
-  const pattern = `%${query.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
+  const supabase = await createClient();
+  const pattern = searchPattern(query);
+  const quotedPattern = quoteSearchPattern(pattern);
 
   const [
-    { data: clients },
-    { data: documents },
-    { data: organizers },
-    { data: tasks },
-    { data: matchingTags },
+    { data: clients, error: clientsError },
+    { data: documents, error: documentsError },
+    { data: organizers, error: organizersError },
+    { data: tasks, error: tasksError },
+    { data: matchingTags, error: matchingTagsError },
   ] = await Promise.all([
     supabase
       .from("clients")
       .select("id,primary_contact_name,email,client_type,status")
-      .or(`primary_contact_name.ilike.${pattern},email.ilike.${pattern}`)
+      .or(`primary_contact_name.ilike.${quotedPattern},email.ilike.${quotedPattern}`)
       .order("primary_contact_name")
       .limit(20),
     supabase
       .from("documents")
-      .select("id,client_id,file_name,status,created_at,clients(primary_contact_name)")
+      .select("id,client_id,file_name,status,created_at,clients!documents_client_firm_fk(primary_contact_name)")
       .ilike("file_name", pattern)
       .order("created_at", { ascending: false })
       .limit(20),
     supabase
       .from("organizers")
-      .select("id,client_id,title,tax_year,status,clients(primary_contact_name)")
+      .select("id,client_id,title,tax_year,status,clients!organizers_client_firm_fk(primary_contact_name)")
       .ilike("title", pattern)
       .order("created_at", { ascending: false })
       .limit(20),
     supabase
       .from("staff_tasks")
       .select("id,client_id,tax_return_job_id,title,status,priority,due_date,clients(primary_contact_name)")
-      .or(`title.ilike.${pattern},details.ilike.${pattern}`)
+      .or(`title.ilike.${quotedPattern},details.ilike.${quotedPattern}`)
       .order("created_at", { ascending: false })
       .limit(20),
     supabase
@@ -88,6 +83,8 @@ export default async function GlobalSearchPage({
       .limit(20),
   ]);
 
+  let hasErrors = Boolean(clientsError || documentsError || organizersError || tasksError || matchingTagsError);
+
   const tagIds = (matchingTags ?? []).map((tag) => tag.id);
   let taggedClients: Array<{
     id: string;
@@ -97,12 +94,13 @@ export default async function GlobalSearchPage({
   }> = [];
 
   if (tagIds.length > 0) {
-    const { data: assignments } = await supabase
+    const { data: assignments, error } = await supabase
       .from("client_tag_assignments")
       .select("client_id,tag_id,clients(primary_contact_name,email)")
       .in("tag_id", tagIds)
       .limit(100);
 
+    hasErrors ||= Boolean(error);
     const tagNameById = new Map((matchingTags ?? []).map((tag) => [tag.id, tag.name]));
     taggedClients = (assignments ?? []).map((assignment) => {
       const client = assignment.clients as unknown as {
@@ -139,20 +137,22 @@ export default async function GlobalSearchPage({
   }> = [];
 
   if (/^\d{4}$/.test(query)) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("tax_return_jobs")
       .select("id,client_id,tax_year,return_type,status,due_date,clients(primary_contact_name)")
       .eq("tax_year", Number(query))
       .order("updated_at", { ascending: false })
       .limit(20);
+    hasErrors ||= Boolean(error);
     returns = (data ?? []) as unknown as typeof returns;
   } else if (matchedClientIds.length > 0) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("tax_return_jobs")
       .select("id,client_id,tax_year,return_type,status,due_date,clients(primary_contact_name)")
       .in("client_id", matchedClientIds.slice(0, 100))
       .order("updated_at", { ascending: false })
       .limit(20);
+    hasErrors ||= Boolean(error);
     returns = (data ?? []) as unknown as typeof returns;
   }
 
@@ -172,24 +172,18 @@ export default async function GlobalSearchPage({
           Global search
         </h1>
         <p className="mt-2 text-slate-500">
-          {total} result{total === 1 ? "" : "s"} for “{query}”
+          {hasErrors ? "Available results" : `${total} result${total === 1 ? "" : "s"}`} for “{query}”
         </p>
       </section>
 
-      <form action="/dashboard/search" method="get" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex gap-2">
-          <input
-            name="q"
-            defaultValue={query}
-            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-          />
-          <button className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800">
-            Search
-          </button>
-        </div>
-      </form>
+      <SearchForm query={query} />
+      {hasErrors && (
+        <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Some results could not be loaded. Submit your search again to retry.
+        </p>
+      )}
 
-      {total === 0 ? (
+      {total === 0 && !hasErrors ? (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
           <h2 className="font-semibold text-slate-900">No matching records</h2>
           <p className="mt-2 text-sm text-slate-500">
@@ -312,5 +306,29 @@ function ResultSection({
       </div>
       <div className="divide-y divide-slate-100">{children}</div>
     </section>
+  );
+}
+
+function SearchForm({ query }: { query: string }) {
+  return (
+    <form role="search" action="/dashboard/search" method="get" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <label htmlFor="workspace-search" className="text-sm font-medium text-slate-700">Search the firm workspace</label>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+        <input
+          id="workspace-search"
+          type="search"
+          name="q"
+          defaultValue={query}
+          required
+          minLength={2}
+          maxLength={200}
+          aria-describedby="workspace-search-help"
+          placeholder="Client, email, document, organizer, task…"
+          className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+        />
+        <button className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800">Search</button>
+      </div>
+      <p id="workspace-search-help" className="mt-2 text-xs text-slate-500">Enter 2–200 characters. Results are limited to 20 per category and 100 client tag matches.</p>
+    </form>
   );
 }

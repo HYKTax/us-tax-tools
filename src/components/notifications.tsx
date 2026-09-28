@@ -57,7 +57,7 @@ export function Notifications({
   }, []);
 
   return (
-    <div className="relative">
+    <div className={area === "dashboard" ? "static lg:relative" : "relative"}>
       <button
         type="button"
         aria-expanded={open}
@@ -67,7 +67,7 @@ export function Notifications({
           setOpen(!open);
           window.dispatchEvent(new Event("notifications-refresh"));
         }}
-        className="relative rounded-lg border border-slate-200 bg-white p-2.5 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+        className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-200 bg-white p-2.5 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
@@ -87,7 +87,7 @@ export function Notifications({
           onKeyDown={(event) => {
             if (event.key === "Escape") setOpen(false);
           }}
-          className="absolute right-0 z-30 mt-2 max-h-[28rem] w-80 max-w-[90vw] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl"
+          className={`absolute z-30 mt-2 max-h-[min(28rem,60dvh)] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl ${area === "dashboard" ? "inset-x-4 top-full lg:inset-x-auto lg:right-0 lg:top-auto lg:w-80 lg:max-w-[90vw]" : "right-0 w-80 max-w-[90vw]"}`}
         >
           <div className="sticky top-0 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
             <div>

@@ -4,7 +4,7 @@ alter table public.notifications
 alter table public.notifications
   add constraint notifications_kind_check check (
     kind in (
-      'message','client_message','engagement_sent','organizer_sent',
+      'message','client_message','engagement_sent','document_request','document_received','organizer_sent',
       'organizer_started','organizer_submitted','organizer_reviewed',
       'changes_requested','organizer_updated','tax_return_review_requested',
       'tax_return_review_changes_requested','tax_return_review_approved',
