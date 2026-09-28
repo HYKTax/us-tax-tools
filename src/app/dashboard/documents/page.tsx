@@ -27,7 +27,21 @@ function extractionStatusClasses(status: string) {
   return "bg-amber-50 text-amber-700";
 }
 
-export default async function DocumentsPage() {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+export default async function DocumentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const filters = await searchParams;
+  const query = firstParam(filters.q).trim().toLowerCase();
+  const statusFilter = firstParam(filters.status);
+  const linkFilter = firstParam(filters.link);
+  const aiFilter = firstParam(filters.ai);
+  const kindFilter = firstParam(filters.kind);
   const supabase = await createClient();
 
   const { data: documents, error } = await supabase
@@ -36,11 +50,11 @@ export default async function DocumentsPage() {
       "id, client_id, tax_return_job_id, document_kind, client_visible, file_name, status, created_at, clients!documents_client_id_fkey(primary_contact_name), tax_return_job:tax_return_jobs(id,tax_year,return_type,status), document_extractions(status,document_type,tax_year,reviewed_at)"
     )
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(500);
 
-  const rows = documents ?? [];
-  const sourceRows = rows.filter((doc) => doc.document_kind !== "return_copy");
-  const returnCopies = rows.filter((doc) => doc.document_kind === "return_copy").length;
+  const allRows = documents ?? [];
+  const sourceRows = allRows.filter((doc) => doc.document_kind !== "return_copy");
+  const returnCopies = allRows.filter((doc) => doc.document_kind === "return_copy").length;
   const pendingReview = sourceRows.filter((doc) => doc.status === "pending_review").length;
   const extracted = sourceRows.filter((doc) => {
     const extraction = Array.isArray(doc.document_extractions)
@@ -55,6 +69,46 @@ export default async function DocumentsPage() {
     return Boolean(extraction?.reviewed_at);
   }).length;
 
+  const rows = allRows.filter((doc) => {
+    const client = doc.clients as unknown as { primary_contact_name: string } | null;
+    const linkedReturn = doc.tax_return_job as unknown as ReturnPreview | null;
+    const extractionRaw = doc.document_extractions as unknown;
+    const extraction = (
+      Array.isArray(extractionRaw) ? extractionRaw[0] : extractionRaw
+    ) as ExtractionPreview | null | undefined;
+
+    if (query) {
+      const searchable = [
+        doc.file_name,
+        client?.primary_contact_name ?? "",
+        extraction?.document_type ?? "",
+        extraction?.tax_year ? String(extraction.tax_year) : "",
+        linkedReturn ? `${linkedReturn.tax_year} ${linkedReturn.return_type}` : "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!searchable.includes(query)) return false;
+    }
+
+    if (statusFilter && doc.status !== statusFilter) return false;
+
+    if (kindFilter === "source" && doc.document_kind === "return_copy") return false;
+    if (kindFilter === "return_copy" && doc.document_kind !== "return_copy") return false;
+
+    if (linkFilter === "linked" && !doc.tax_return_job_id) return false;
+    if (linkFilter === "unlinked" && doc.tax_return_job_id) return false;
+
+    if (aiFilter === "none" && extraction) return false;
+    if (aiFilter === "completed" && extraction?.status !== "completed") return false;
+    if (aiFilter === "reviewed" && !extraction?.reviewed_at) return false;
+    if (aiFilter === "failed" && !["failed", "unsupported"].includes(extraction?.status ?? "")) return false;
+
+    return true;
+  });
+
+  const unlinkedSource = sourceRows.filter((doc) => !doc.tax_return_job_id).length;
+  const hasFilters = Boolean(query || statusFilter || linkFilter || aiFilter || kindFilter);
+
   return (
     <div className="flex flex-col gap-7">
       <section>
@@ -65,7 +119,7 @@ export default async function DocumentsPage() {
         </p>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Pending document review</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{pendingReview}</p>
@@ -78,10 +132,90 @@ export default async function DocumentsPage() {
           <p className="text-sm text-slate-500">AI data human-reviewed</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{aiReviewed}</p>
         </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <p className="text-sm font-semibold text-amber-700">Unlinked source files</p>
+          <p className="mt-2 text-2xl font-semibold text-amber-950">{unlinkedSource}</p>
+        </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Final return copies</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{returnCopies}</p>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="font-semibold text-slate-950">Find documents</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Filter the review queue without changing document state.
+            </p>
+          </div>
+          {hasFilters && (
+            <Link
+              href="/dashboard/documents"
+              className="w-fit text-sm font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Clear filters
+            </Link>
+          )}
+        </div>
+
+        <form
+          action="/dashboard/documents"
+          method="get"
+          className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6"
+        >
+          <input
+            name="q"
+            defaultValue={firstParam(filters.q)}
+            placeholder="File, client, document type…"
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 xl:col-span-2"
+          />
+          <select
+            name="status"
+            defaultValue={statusFilter}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">Any review status</option>
+            <option value="pending_review">Pending review</option>
+            <option value="reviewed">Reviewed</option>
+          </select>
+          <select
+            name="link"
+            defaultValue={linkFilter}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">Any return link</option>
+            <option value="linked">Linked to return</option>
+            <option value="unlinked">Not linked to return</option>
+          </select>
+          <select
+            name="ai"
+            defaultValue={aiFilter}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">Any AI state</option>
+            <option value="none">Not extracted</option>
+            <option value="completed">Extraction completed</option>
+            <option value="reviewed">AI human-reviewed</option>
+            <option value="failed">Failed / unsupported</option>
+          </select>
+          <select
+            name="kind"
+            defaultValue={kindFilter}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900"
+          >
+            <option value="">All document kinds</option>
+            <option value="source">Source documents</option>
+            <option value="return_copy">Final return copies</option>
+          </select>
+          <button
+            type="submit"
+            className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 md:col-span-2 xl:col-span-1"
+          >
+            Apply filters
+          </button>
+        </form>
       </section>
 
       {error && (
@@ -90,7 +224,7 @@ export default async function DocumentsPage() {
         </p>
       )}
 
-      {!error && rows.length === 0 ? (
+      {!error && allRows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
           <h2 className="font-semibold text-slate-900">No documents yet</h2>
           <p className="mt-2 text-sm text-slate-500">Client uploads will appear here automatically.</p>
@@ -98,9 +232,9 @@ export default async function DocumentsPage() {
       ) : (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-semibold text-slate-950">Recent files</h2>
+            <h2 className="font-semibold text-slate-950">Document queue</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Source documents support preparation; final return copies are controlled delivery artifacts.
+              {rows.length} matching file{rows.length === 1 ? "" : "s"} · {allRows.length} total loaded. Source documents support preparation; final return copies are controlled delivery artifacts.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -117,7 +251,14 @@ export default async function DocumentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((doc) => {
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center">
+                      <p className="font-medium text-slate-800">No documents match these filters</p>
+                      <p className="mt-1 text-sm text-slate-500">Clear or adjust the filters above.</p>
+                    </td>
+                  </tr>
+                ) : rows.map((doc) => {
                   const client = doc.clients as unknown as { primary_contact_name: string } | null;
                   const linkedReturn = doc.tax_return_job as unknown as ReturnPreview | null;
                   const extractionRaw = doc.document_extractions as unknown;
