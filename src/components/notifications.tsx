@@ -119,9 +119,13 @@ export function Notifications({
                 <Link
                   href={
                     row.subject_client_id
-                      ? area === "portal"
-                        ? "/portal/messages"
-                        : `/dashboard/messages/${row.subject_client_id}`
+                      ? row.kind === "client_message"
+                        ? area === "portal"
+                          ? "/portal/messages"
+                          : `/dashboard/messages/${row.subject_client_id}`
+                        : area === "portal"
+                          ? "/portal/documents"
+                          : "/dashboard/documents"
                       : row.tax_return_job_id
                         ? area === "portal"
                           ? "/portal/returns"
