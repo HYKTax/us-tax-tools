@@ -127,6 +127,17 @@ export default async function ReturnJobPage({
     const extraction = Array.isArray(raw) ? raw[0] : raw;
     return Boolean(extraction && typeof extraction === "object" && "status" in extraction && extraction.status === "completed");
   }).length;
+  const sourceDocumentsReady = linkedDocuments.every(
+    (document) => document.status === "reviewed"
+  );
+  const aiReviewsReady = linkedDocuments.every((document) => {
+    const raw = document.document_extractions as unknown;
+    const extraction = (Array.isArray(raw) ? raw[0] : raw) as
+      | { status?: string; reviewed_at?: string | null }
+      | null
+      | undefined;
+    return extraction?.status !== "completed" || Boolean(extraction.reviewed_at);
+  });
 
   const approvedSourceValues = (sourceValues ?? []) as unknown as ApprovedSourceValue[];
   const fieldValueSets = new Map<string, Set<string>>();
@@ -270,6 +281,9 @@ export default async function ReturnJobPage({
         reviews={reviews}
         canManageReturns={canManageReturns}
         canReviewReturns={canReviewReturns}
+        sourceDocumentsReady={sourceDocumentsReady}
+        aiReviewsReady={aiReviewsReady}
+        hasSourceConflicts={conflictingFields.size > 0}
       />
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
