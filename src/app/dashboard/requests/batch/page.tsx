@@ -10,12 +10,39 @@ export default async function BatchDocumentRequestsPage() {
   if (!profile || !hasStaffPermission(profile, "documents.manage")) notFound();
 
   const supabase = await createClient();
-  const { data: clients } = await supabase
-    .from("clients")
-    .select("id,primary_contact_name,email,client_type")
-    .eq("status", "active")
-    .order("primary_contact_name")
-    .limit(1000);
+  const [
+    { data: clients },
+    { data: tags },
+    { data: tagAssignments },
+  ] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id,primary_contact_name,email,client_type")
+      .eq("status", "active")
+      .order("primary_contact_name")
+      .limit(1000),
+    supabase
+      .from("client_tags")
+      .select("id,name")
+      .order("name")
+      .limit(200),
+    supabase
+      .from("client_tag_assignments")
+      .select("client_id,tag_id")
+      .limit(5000),
+  ]);
+
+  const tagIdsByClient = new Map<string, string[]>();
+  for (const assignment of tagAssignments ?? []) {
+    const current = tagIdsByClient.get(assignment.client_id) ?? [];
+    current.push(assignment.tag_id);
+    tagIdsByClient.set(assignment.client_id, current);
+  }
+
+  const enrichedClients = (clients ?? []).map((client) => ({
+    ...client,
+    tag_ids: tagIdsByClient.get(client.id) ?? [],
+  }));
 
   return (
     <div className="flex flex-col gap-7">
@@ -35,7 +62,7 @@ export default async function BatchDocumentRequestsPage() {
         </p>
       </section>
 
-      <BatchDocumentRequestForm clients={clients ?? []} />
+      <BatchDocumentRequestForm clients={enrichedClients} tags={tags ?? []} />
     </div>
   );
 }
