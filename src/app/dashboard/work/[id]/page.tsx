@@ -5,7 +5,9 @@ import { getCurrentProfile } from "@/lib/auth";
 import { ReturnJobEditor } from "./return-job-editor";
 import { ReturnReviewPanel } from "./return-review-panel";
 import { TaxSoftwareExportPanel } from "./tax-software-export-panel";
+import { ReturnDeliveryPanel } from "./return-delivery-panel";
 import type { TaxExportSourceField } from "@/lib/tax-software-export";
+import { withSignedUrls } from "@/lib/documents";
 import {
   canBePreparer,
   canBeReviewer,
@@ -67,6 +69,7 @@ export default async function ReturnJobPage({
   if (!profile) notFound();
   const canManageReturns = hasStaffPermission(profile, "returns.manage");
   const canReviewReturns = hasStaffPermission(profile, "returns.review");
+  const canUploadDocuments = hasStaffPermission(profile, "documents.manage");
   const supabase = await createClient();
 
   const [{ data: job, error }, { data: staff }] = await Promise.all([
@@ -96,13 +99,19 @@ export default async function ReturnJobPage({
   const preparers = staffRows.filter((member) => canBePreparer(member.staff_role));
   const reviewers = staffRows.filter((member) => canBeReviewer(member.staff_role));
 
-  const [{ data: documents }, { data: sourceValues }, { data: reviewRows }] = await Promise.all([
+  const [
+    { data: documents },
+    { data: sourceValues },
+    { data: reviewRows },
+    { data: returnCopyRows },
+  ] = await Promise.all([
     supabase
       .from("documents")
       .select(
         "id, file_name, status, created_at, document_extractions(status,document_type,tax_year,reviewed_at,confidence,summary)"
       )
       .eq("tax_return_job_id", job.id)
+      .neq("document_kind", "return_copy")
       .order("created_at", { ascending: false }),
     supabase
       .from("tax_return_source_values")
@@ -119,6 +128,14 @@ export default async function ReturnJobPage({
       )
       .eq("tax_return_job_id", job.id)
       .order("cycle_number", { ascending: false }),
+    supabase
+      .from("documents")
+      .select(
+        "id, file_name, storage_path, created_at, client_visible, released_at"
+      )
+      .eq("tax_return_job_id", job.id)
+      .eq("document_kind", "return_copy")
+      .order("created_at", { ascending: false }),
   ]);
 
   const client = job.clients as unknown as {
@@ -131,6 +148,18 @@ export default async function ReturnJobPage({
     title: string;
     status: string;
   } | null;
+
+  const returnCopies = await withSignedUrls(
+    supabase,
+    (returnCopyRows ?? []) as Array<{
+      id: string;
+      file_name: string;
+      storage_path: string;
+      created_at: string;
+      client_visible: boolean;
+      released_at: string | null;
+    }>
+  );
 
   const linkedDocuments = documents ?? [];
   const reviewedDocuments = linkedDocuments.filter((document) => document.status === "reviewed").length;
@@ -306,6 +335,16 @@ export default async function ReturnJobPage({
         jobId={job.id}
         hasCurrentApproval={hasCurrentApproval}
         sourceFields={exportSourceFields}
+      />
+
+      <ReturnDeliveryPanel
+        jobId={job.id}
+        clientId={job.client_id}
+        jobStatus={job.status}
+        hasCurrentApproval={hasCurrentApproval}
+        canUpload={canUploadDocuments}
+        canRelease={canReviewReturns}
+        returnCopies={returnCopies}
       />
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
