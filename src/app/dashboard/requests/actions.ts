@@ -70,3 +70,54 @@ export async function cancelDocumentRequest(
 
   return { success: true, message: "Document request cancelled." };
 }
+
+
+export async function createDocumentRequestsBatch(input: {
+  clientIds: string[];
+  title: string;
+  details?: string;
+  dueDate?: string;
+}): Promise<Result & { created?: number; skipped?: number }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !hasStaffPermission(profile, "documents.manage")) {
+    return { error: "Your role cannot create document requests." };
+  }
+
+  const clientIds = Array.from(new Set(input.clientIds)).filter(Boolean);
+  const title = input.title.trim();
+  const details = input.details?.trim() || null;
+
+  if (clientIds.length === 0) return { error: "Select at least one client." };
+  if (clientIds.length > 200) return { error: "Select no more than 200 clients." };
+  if (!title || title.length > 240) return { error: "Enter a request title up to 240 characters." };
+  if (details && details.length > 5000) return { error: "Request details must be 5000 characters or fewer." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_document_requests_batch", {
+    p_client_ids: clientIds,
+    p_title: title,
+    p_details: details,
+    p_due_date: input.dueDate || null,
+  });
+
+  if (error) return { error: error.message };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const created = Number(row?.created_count ?? 0);
+  const skipped = Number(row?.skipped_count ?? 0);
+
+  scheduleNotificationEmails();
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/requests");
+  revalidatePath("/dashboard/documents");
+  revalidatePath("/dashboard/readiness");
+
+  return {
+    success: true,
+    created,
+    skipped,
+    message:
+      `Created ${created} request${created === 1 ? "" : "s"}` +
+      (skipped ? `; skipped ${skipped} duplicate open request${skipped === 1 ? "" : "s"}.` : "."),
+  };
+}
