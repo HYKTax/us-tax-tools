@@ -36,6 +36,16 @@ type DocumentRow = {
   clients: { primary_contact_name: string } | null;
 };
 
+type DocumentRequestRow = {
+  id: string;
+  client_id: string;
+  title: string;
+  due_date: string | null;
+  status: string;
+  created_at: string;
+  client: { primary_contact_name: string } | null;
+};
+
 type OrganizerRow = {
   id: string;
   client_id: string;
@@ -64,6 +74,7 @@ export default async function ReadinessPage() {
     { data: returnData, error: returnsError },
     { data: documentData, error: documentsError },
     { data: organizerData, error: organizersError },
+    { data: requestData, error: requestsError },
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -93,12 +104,23 @@ export default async function ReadinessPage() {
       .select("id,client_id,tax_year,status,created_at")
       .eq("tax_year", currentTaxYear)
       .limit(3000),
+    supabase
+      .from("document_requests")
+      .select("id,client_id,title,due_date,status,created_at,client:clients!document_requests_client_id_fkey(primary_contact_name)")
+      .eq("status", "open")
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(3000),
   ]);
 
   const clients = (clientData ?? []) as ClientRow[];
   const returns = (returnData ?? []) as unknown as ReturnRow[];
   const documents = (documentData ?? []) as unknown as DocumentRow[];
   const organizers = (organizerData ?? []) as OrganizerRow[];
+  const documentRequests = (requestData ?? []) as unknown as DocumentRequestRow[];
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueDocumentRequests = documentRequests.filter(
+    (request) => request.due_date && request.due_date < today
+  );
 
   const noPortalAccess = clients.filter((client) => !client.profile_id);
 
@@ -137,10 +159,11 @@ export default async function ReadinessPage() {
     noDueDate.length +
     staleReturns.length +
     oldPendingDocuments.length +
-    clientsWithoutOrganizer.length;
+    clientsWithoutOrganizer.length +
+    overdueDocumentRequests.length;
 
   const dataError =
-    clientsError || returnsError || documentsError || organizersError;
+    clientsError || returnsError || documentsError || organizersError || requestsError;
 
   return (
     <div className="flex flex-col gap-8">
@@ -247,6 +270,13 @@ export default async function ReadinessPage() {
           severity={oldPendingDocuments.length ? "amber" : "clear"}
         />
         <IssueCard
+          title="Overdue document requests"
+          count={overdueDocumentRequests.length}
+          helper="Requested client documents past their due date"
+          href="/dashboard/requests"
+          severity={overdueDocumentRequests.length ? "red" : "clear"}
+        />
+        <IssueCard
           title={`${currentTaxYear} returns without organizer`}
           count={clientsWithoutOrganizer.length}
           helper="Clients with a current-year return but no matching-year organizer"
@@ -277,7 +307,7 @@ export default async function ReadinessPage() {
                 key: job.id,
                 title: job.clients?.primary_contact_name ?? "Client",
                 detail: `${job.tax_year} ${job.return_type} · last updated ${new Date(job.updated_at).toLocaleDateString()}`,
-                href: `/dashboard/work/${job.id}`,
+                href: `/dashboard/work/${job.id}` as Route,
               }))}
               more={Math.max(0, staleReturns.length - 12)}
             />
