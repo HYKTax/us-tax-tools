@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -73,12 +74,12 @@ export default async function DocumentRequestsPage() {
             Client uploads attach directly to the request and flow into Document Center.
           </p>
         </div>
-        <a
+        <Link
           href="/dashboard/requests/batch"
           className="w-fit rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
         >
           Batch requests
-        </a>
+        </Link>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
