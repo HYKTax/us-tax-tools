@@ -238,6 +238,22 @@ test('database authorization and organizer lifecycle', async () => {
       'review'
     );
 
+    const reviewRequestedNotice = (await asUser(
+      id(14),
+      `select id,kind,tax_return_job_id from notifications
+       where kind='tax_return_review_requested'
+         and tax_return_job_id='${returnJobId}'`
+    )).rows[0];
+    assert.ok(reviewRequestedNotice);
+    assert.equal(reviewRequestedNotice.tax_return_job_id, returnJobId);
+    assert.equal(
+      (await asUser(
+        id(11),
+        `select id from notifications where id='${reviewRequestedNotice.id}'`
+      )).rows.length,
+      0
+    );
+
     await denied(
       id(10),
       `select resolve_tax_return_review('${firstReviewId}','approved','Self approval')`,
@@ -254,6 +270,15 @@ test('database authorization and organizer lifecycle', async () => {
     )).rows[0];
     assert.equal(reviewedJob.status,'ready_to_file');
     assert.equal(reviewedJob.efile_status,'ready');
+    assert.equal(
+      (await asUser(
+        id(10),
+        `select count(*)::int as n from notifications
+         where kind='tax_return_review_approved'
+           and tax_return_job_id='${returnJobId}'`
+      )).rows[0].n,
+      1
+    );
 
     await asUser(id(10), `
       select update_tax_return_job(
@@ -297,5 +322,14 @@ test('database authorization and organizer lifecycle', async () => {
     )).rows[0];
     assert.equal(reviewedJob.status,'preparing');
     assert.equal(reviewedJob.review_version,3);
+    assert.equal(
+      (await asUser(
+        id(10),
+        `select count(*)::int as n from notifications
+         where kind='tax_return_review_changes_requested'
+           and tax_return_job_id='${returnJobId}'`
+      )).rows[0].n,
+      1
+    );
   } finally { await db.close(); }
 });
