@@ -24,6 +24,43 @@ type ReturnJobRow = {
   due_date: string | null;
 };
 
+type ClientAuditRow = {
+  id: string;
+  action: string;
+  target_type: string;
+  created_at: string;
+  metadata: Record<string, unknown> | null;
+  actor: { full_name: string } | null;
+};
+
+function auditLabel(action: string) {
+  return action
+    .split(".")
+    .map((part) => part.replaceAll("_", " "))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" · ");
+}
+
+function auditCategory(action: string) {
+  if (action.startsWith("tax_return.")) return "Tax return";
+  if (action.startsWith("document.")) return "Document";
+  if (action.startsWith("organizer.")) return "Organizer";
+  if (action.startsWith("client_message.")) return "Message";
+  if (action.startsWith("client_note.")) return "Internal note";
+  if (action.startsWith("client.")) return "Client";
+  return "Activity";
+}
+
+function auditCategoryClasses(category: string) {
+  if (category === "Tax return") return "bg-blue-50 text-blue-700";
+  if (category === "Document") return "bg-cyan-50 text-cyan-700";
+  if (category === "Organizer") return "bg-amber-50 text-amber-700";
+  if (category === "Message") return "bg-violet-50 text-violet-700";
+  if (category === "Internal note") return "bg-slate-100 text-slate-700";
+  if (category === "Client") return "bg-emerald-50 text-emerald-700";
+  return "bg-slate-100 text-slate-600";
+}
+
 function badge(status: string) {
   if (status === "active" || status === "reviewed" || status === "accepted" || status === "completed") {
     return "bg-emerald-50 text-emerald-700";
@@ -56,6 +93,7 @@ export default async function ClientDetailPage({
   const canManageClients = hasStaffPermission(profile, "clients.manage");
   const canManageOrganizers = hasStaffPermission(profile, "organizers.manage");
   const canManageDocuments = hasStaffPermission(profile, "documents.manage");
+  const canViewActivity = hasStaffPermission(profile, "audit.view");
   const supabase = await createClient();
 
   const { data: client } = await supabase
@@ -73,6 +111,7 @@ export default async function ClientDetailPage({
     { data: returnJobs },
     { data: staff },
     { data: noteRows },
+    { data: allDocumentIds },
   ] = await Promise.all([
     supabase
       .from("organizers")
@@ -105,6 +144,11 @@ export default async function ClientDetailPage({
       .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(100),
+    supabase
+      .from("documents")
+      .select("id")
+      .eq("client_id", id)
+      .limit(500),
   ]);
 
   const organizerRows = (organizers ?? []) as OrganizerRow[];
@@ -135,6 +179,31 @@ export default async function ClientDetailPage({
   const pendingOrganizers = organizerRows.filter((organizer) => ["sent", "in_progress"].includes(organizer.status)).length;
   const submitted = organizerRows.filter((organizer) => organizer.status === "submitted").length;
   const openReturns = jobRows.filter((job) => !["accepted", "completed"].includes(job.status)).length;
+
+  let activityRows: ClientAuditRow[] = [];
+  if (canViewActivity) {
+    const relatedTargetIds = Array.from(
+      new Set([
+        client.id,
+        ...organizerRows.map((organizer) => organizer.id),
+        ...jobRows.map((job) => job.id),
+        ...(allDocumentIds ?? []).map((document) => document.id),
+      ])
+    );
+
+    if (relatedTargetIds.length > 0) {
+      const { data: activity } = await supabase
+        .from("audit_log")
+        .select(
+          "id,action,target_type,created_at,metadata,actor:profiles!audit_log_actor_id_fkey(full_name)"
+        )
+        .in("target_id", relatedTargetIds)
+        .order("created_at", { ascending: false })
+        .limit(80);
+
+      activityRows = (activity ?? []) as unknown as ClientAuditRow[];
+    }
+  }
 
   return (
     <div className="flex flex-col gap-7">
@@ -275,6 +344,64 @@ export default async function ClientDetailPage({
           </div>
         </div>
       </section>
+
+      {canViewActivity && (
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Manager view
+              </p>
+              <h2 className="mt-1 font-semibold text-slate-950">Client activity</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Recent audited organizer, document, return, message, note, and client events.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/activity"
+              className="w-fit text-sm font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Firm activity →
+            </Link>
+          </div>
+
+          {activityRows.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-slate-500">
+              No audited activity recorded for this client yet.
+            </p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {activityRows.map((row) => {
+                const category = auditCategory(row.action);
+                return (
+                  <div key={row.id} className="px-5 py-4">
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + auditCategoryClasses(category)}>
+                            {category}
+                          </span>
+                          <p className="font-semibold text-slate-900">
+                            {auditLabel(row.action)}
+                          </p>
+                        </div>
+                        <p className="mt-2 text-sm text-slate-600">
+                          {row.actor?.full_name ?? "System / unknown actor"}
+                          {" · "}
+                          <span className="capitalize">{row.target_type.replaceAll("_", " ")}</span>
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs text-slate-400">
+                        {new Date(row.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       <ClientNotesPanel
         clientId={client.id}
