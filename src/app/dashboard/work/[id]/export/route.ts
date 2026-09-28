@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { hasStaffPermission } from "@/lib/staff-permissions";
@@ -155,7 +156,38 @@ export async function GET(
   const exportResult = buildTaxSoftwareExport(software, sourceFields);
   const clientName = client?.primary_contact_name ?? "Client";
 
+  const body =
+    format === "json"
+      ? JSON.stringify(
+          {
+            software,
+            export_kind: "reviewed_source_data_handoff",
+            direct_vendor_import: false,
+            tax_year: job.tax_year,
+            return_type: job.return_type,
+            client_name: clientName,
+            review_version: job.review_version,
+            mapped_count: exportResult.mappedCount,
+            unmapped_count: exportResult.unmappedCount,
+            rows: exportResult.rows,
+          },
+          null,
+          2
+        )
+      : taxSoftwareExportCsv({
+          software,
+          taxYear: job.tax_year,
+          returnType: job.return_type,
+          clientName,
+          reviewVersion: job.review_version,
+          rows: exportResult.rows,
+        });
+
+  const sha256 = createHash("sha256").update(body, "utf8").digest("hex");
+  const auditId = randomUUID();
+
   const { error: auditError } = await supabase.from("audit_log").insert({
+    id: auditId,
     firm_id: profile.firm_id,
     actor_id: profile.id,
     action: "tax_return.export_generated",
@@ -170,6 +202,7 @@ export async function GET(
       field_count: exportResult.rows.length,
       mapped_count: exportResult.mappedCount,
       unmapped_count: exportResult.unmappedCount,
+      sha256,
     },
   });
 
@@ -192,48 +225,17 @@ export async function GET(
     "Cache-Control": "no-store, private",
     "Content-Disposition": `attachment; filename="${baseName}.${format}"`,
     "X-Content-Type-Options": "nosniff",
+    "X-US-Tax-Tools-Audit-ID": auditId,
+    "X-US-Tax-Tools-SHA256": sha256,
   };
 
-  if (format === "json") {
-    return new Response(
-      JSON.stringify(
-        {
-          software,
-          export_kind: "reviewed_source_data_handoff",
-          direct_vendor_import: false,
-          tax_year: job.tax_year,
-          return_type: job.return_type,
-          client_name: clientName,
-          review_version: job.review_version,
-          mapped_count: exportResult.mappedCount,
-          unmapped_count: exportResult.unmappedCount,
-          rows: exportResult.rows,
-        },
-        null,
-        2
-      ),
-      {
-        headers: {
-          ...commonHeaders,
-          "Content-Type": "application/json; charset=utf-8",
-        },
-      }
-    );
-  }
-
-  const csv = taxSoftwareExportCsv({
-    software,
-    taxYear: job.tax_year,
-    returnType: job.return_type,
-    clientName,
-    reviewVersion: job.review_version,
-    rows: exportResult.rows,
-  });
-
-  return new Response(csv, {
+  return new Response(body, {
     headers: {
       ...commonHeaders,
-      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Type":
+        format === "json"
+          ? "application/json; charset=utf-8"
+          : "text/csv; charset=utf-8",
     },
   });
 }
