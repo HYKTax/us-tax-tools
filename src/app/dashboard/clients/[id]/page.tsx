@@ -11,6 +11,7 @@ import {
   ClientContactForm,
   type ClientContactValues,
 } from "@/components/client-contact-form";
+import { ClientTags, type ClientTagView } from "./client-tags";
 
 type OrganizerRow = {
   id: string;
@@ -116,6 +117,7 @@ export default async function ClientDetailPage({
     { data: staff },
     { data: noteRows },
     { data: allDocumentIds },
+    { data: tagAssignments },
   ] = await Promise.all([
     supabase
       .from("organizers")
@@ -153,6 +155,11 @@ export default async function ClientDetailPage({
       .select("id")
       .eq("client_id", id)
       .limit(500),
+    supabase
+      .from("client_tag_assignments")
+      .select("tag:client_tags!client_tag_assignments_tag_id_fkey(id,name)")
+      .eq("client_id", id)
+      .order("created_at", { ascending: true }),
   ]);
 
   const organizerRows = (organizers ?? []) as OrganizerRow[];
@@ -180,6 +187,12 @@ export default async function ClientDetailPage({
     profile.role === "firm_admin" ||
     profile.staff_role === "admin" ||
     profile.staff_role === "manager";
+  const tags: ClientTagView[] = (tagAssignments ?? [])
+    .map((assignment) => {
+      const tag = assignment.tag as unknown as { id: string; name: string } | null;
+      return tag ? { id: tag.id, name: tag.name } : null;
+    })
+    .filter((tag): tag is ClientTagView => Boolean(tag));
   const contact: ClientContactValues = {
     phone: client.phone,
     address_line1: client.address_line1,
@@ -280,6 +293,12 @@ export default async function ClientDetailPage({
             ? "Update the phone, mailing address, and preferred contact method used by the firm."
             : "Contact details are visible to your role but can only be edited by authorized client-management staff."
         }
+      />
+
+      <ClientTags
+        clientId={client.id}
+        tags={tags}
+        canManage={canManageClients}
       />
 
       <section className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
