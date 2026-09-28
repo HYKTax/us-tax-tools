@@ -87,12 +87,19 @@ export async function runDocumentExtraction(documentId: string): Promise<ActionR
 
   const { data: document, error: documentError } = await supabase
     .from("documents")
-    .select("id, firm_id, client_id, tax_return_job_id, file_name, storage_path, mime_type, size_bytes")
+    .select("id, firm_id, client_id, tax_return_job_id, document_kind, file_name, storage_path, mime_type, size_bytes")
     .eq("id", documentId)
     .maybeSingle();
 
   if (documentError || !document || document.firm_id !== profile.firm_id) {
     return { error: "Document not found." };
+  }
+
+  if (document.document_kind === "return_copy") {
+    return {
+      error:
+        "Final return copies are delivery documents and are not source documents for AI extraction.",
+    };
   }
 
   if (document.tax_return_job_id) {
