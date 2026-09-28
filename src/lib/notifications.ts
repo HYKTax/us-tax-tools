@@ -14,6 +14,7 @@ export async function dispatchNotificationEmails(organizerId?: string) {
     const content = notificationContent(row.kind, {
       organizerId: row.organizer_id ?? null,
       taxReturnJobId: row.tax_return_job_id ?? null,
+      clientId: row.subject_client_id ?? null,
       forClient: Boolean(row.target_client_id),
       siteUrl: process.env.NEXT_PUBLIC_SITE_URL!,
     });
