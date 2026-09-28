@@ -1,10 +1,9 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { withSignedUrls } from "@/lib/documents";
 
 type ReturnDocument = {
   id: string;
   file_name: string;
-  storage_path: string;
   created_at: string;
   released_at: string | null;
 };
@@ -14,17 +13,13 @@ export default async function ClientReturnsPage() {
 
   const { data, error } = await supabase
     .from("documents")
-    .select("id, file_name, storage_path, created_at, released_at")
+    .select("id, file_name, created_at, released_at")
     .eq("document_kind", "return_copy")
     .eq("client_visible", true)
     .order("released_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
 
-  const documents = await withSignedUrls(
-    supabase,
-    (data ?? []) as ReturnDocument[],
-    15 * 60
-  );
+  const documents = (data ?? []) as ReturnDocument[];
 
   return (
     <div className="flex flex-col gap-7">
@@ -35,7 +30,7 @@ export default async function ClientReturnsPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-slate-500">
           Final return copies released by your tax professional appear here.
-          Download links are private and expire automatically.
+          Final return links are private, short-lived, and their portal access is recorded for delivery history.
         </p>
       </section>
 
@@ -85,20 +80,13 @@ export default async function ClientReturnsPage() {
                   </p>
                 </div>
 
-                {document.url ? (
-                  <a
-                    href={document.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-                  >
-                    Open PDF
-                  </a>
-                ) : (
-                  <span className="text-sm text-slate-400">
-                    Secure link unavailable
-                  </span>
-                )}
+                <Link
+                  href={`/portal/returns/${document.id}/open`}
+                  target="_blank"
+                  className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Open PDF
+                </Link>
               </div>
             ))}
           </div>
