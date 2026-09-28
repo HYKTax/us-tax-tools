@@ -102,6 +102,12 @@ export function TaxSoftwareExportPanel({
                   >
                     Download JSON
                   </a>
+                  <a
+                    href={`/dashboard/work/${jobId}/entry?software=${target}`}
+                    className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    Entry assistant
+                  </a>
                 </div>
               </div>
             );
