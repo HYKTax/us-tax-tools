@@ -1,8 +1,21 @@
 import "server-only";
 import { Resend } from "resend";
 
+export function notificationEmailConfigStatus() {
+  const missing: string[] = [];
+
+  if (!process.env.RESEND_API_KEY?.trim()) missing.push("RESEND_API_KEY");
+  if (!process.env.EMAIL_FROM?.trim()) missing.push("EMAIL_FROM");
+  if (!process.env.NEXT_PUBLIC_SITE_URL?.trim()) missing.push("NEXT_PUBLIC_SITE_URL");
+
+  return {
+    configured: missing.length === 0,
+    missing,
+  };
+}
+
 export function notificationEmailConfigured() {
-  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && process.env.NEXT_PUBLIC_SITE_URL);
+  return notificationEmailConfigStatus().configured;
 }
 
 // Provider acceptance is not proof of delivery. Never log recipient or content.
