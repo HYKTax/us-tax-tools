@@ -33,6 +33,7 @@ export default async function PortalPage() {
     { data: organizers, error },
     { data: documents },
     { count: releasedReturnCount },
+    { count: openDocumentRequests },
     { data: firm },
   ] = await Promise.all([
     supabase.from("organizers").select("id, title, tax_year, status").order("tax_year", { ascending: false }),
@@ -42,6 +43,10 @@ export default async function PortalPage() {
       .select("id", { count: "exact", head: true })
       .eq("document_kind", "return_copy")
       .eq("client_visible", true),
+    supabase
+      .from("document_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open"),
     profile
       ? supabase
           .from("firms")
@@ -54,6 +59,7 @@ export default async function PortalPage() {
   const rows = (organizers ?? []) as OrganizerRow[];
   const openItems = rows.filter((row) => ["sent", "in_progress"].includes(row.status));
   const firstName = profile?.full_name?.split(" ")[0] || "there";
+  const actionCount = openItems.length + (openDocumentRequests ?? 0);
 
   return (
     <div className="flex flex-col gap-8">
@@ -61,8 +67,8 @@ export default async function PortalPage() {
         <p className="text-sm font-semibold text-blue-600">Your secure client portal</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Welcome, {firstName}.</h1>
         <p className="mt-2 text-slate-500">
-          {openItems.length > 0
-            ? `You have ${openItems.length} item${openItems.length === 1 ? "" : "s"} that need your attention.`
+          {actionCount > 0
+            ? `You have ${actionCount} item${actionCount === 1 ? "" : "s"} that need your attention.`
             : "You’re all caught up. We’ll show new requests here when your tax professional sends them."}
         </p>
       </section>
@@ -105,7 +111,14 @@ export default async function PortalPage() {
           href="/portal/documents"
           className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md"
         >
-          <p className="text-sm font-semibold text-blue-600">Documents</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-blue-600">Documents</p>
+            {(openDocumentRequests ?? 0) > 0 && (
+              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                {openDocumentRequests} requested
+              </span>
+            )}
+          </div>
           <h2 className="mt-2 font-semibold text-slate-950">Upload secure files</h2>
           <p className="mt-1 text-sm leading-6 text-slate-500">
             Send additional PDFs or tax-document images securely.
