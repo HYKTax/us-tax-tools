@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { hasStaffPermission } from "@/lib/staff-permissions";
+import { scheduleNotificationEmails } from "@/lib/notifications";
 
 const returnTypes = new Set(["1040","1040-NR","1065","1120-S","1120","1041","990","706","709","other"]);
 const statuses = new Set([
@@ -124,6 +125,8 @@ export async function requestTaxReturnReview(
 
   if (error) return { error: error.message };
 
+  scheduleNotificationEmails();
+
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/work");
   revalidatePath(`/dashboard/work/${jobId}`);
@@ -156,6 +159,8 @@ export async function resolveTaxReturnReview(input: {
   });
 
   if (error) return { error: error.message };
+
+  scheduleNotificationEmails();
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/work");
