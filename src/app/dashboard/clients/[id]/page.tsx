@@ -248,12 +248,14 @@ export default async function ClientDetailPage({
             <p className="mt-2 text-slate-500">{client.email} · <span className="capitalize">{client.client_type}</span></p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/dashboard/messages/${client.id}`}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Message client
-            </Link>
+            {client.status !== "archived" && (
+              <Link
+                href={`/dashboard/messages/${client.id}`}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Message client
+              </Link>
+            )}
             {canManageClients ? (
               <>
                 {client.status !== "archived" && (
@@ -288,6 +290,15 @@ export default async function ClientDetailPage({
           <p className="mt-2 text-2xl font-semibold text-slate-950">{submitted}</p>
         </div>
       </section>
+
+      {client.status === "archived" && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-sm font-semibold text-amber-800">Archived client</p>
+          <p className="mt-1 text-sm leading-6 text-amber-700">
+            Portal access is disabled. Historical returns, documents, organizers, messages, notes, tags, and audit history remain available to the firm.
+          </p>
+        </section>
+      )}
 
       <ClientContactForm
         clientId={client.id}
@@ -341,17 +352,23 @@ export default async function ClientDetailPage({
           <h2 className="font-semibold text-slate-950">Create tax return</h2>
           <p className="mt-1 text-sm text-slate-500">Add a return to the firm work queue and assign preparation/review responsibility.</p>
           <div className="mt-5">
-            <CreateReturnJobForm
-              clientId={client.id}
-              preparers={preparers}
-              reviewers={reviewers}
-              organizers={organizerRows.map((organizer) => ({
-                id: organizer.id,
-                title: organizer.title,
-                tax_year: organizer.tax_year,
-                status: organizer.status,
-              }))}
-            />
+            {client.status === "archived" ? (
+              <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                Reactivate this client before creating new tax-return work.
+              </div>
+            ) : (
+              <CreateReturnJobForm
+                clientId={client.id}
+                preparers={preparers}
+                reviewers={reviewers}
+                organizers={organizerRows.map((organizer) => ({
+                  id: organizer.id,
+                  title: organizer.title,
+                  tax_year: organizer.tax_year,
+                  status: organizer.status,
+                }))}
+              />
+            )}
           </div>
         </div>
       </section>
@@ -387,7 +404,11 @@ export default async function ClientDetailPage({
           <h2 className="font-semibold text-slate-950">Send an organizer</h2>
           <p className="mt-1 text-sm text-slate-500">Choose a reusable template and send it securely to this client.</p>
           <div className="mt-5">
-            {canManageOrganizers ? (
+            {client.status === "archived" ? (
+              <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                Reactivate this client before sending a new organizer.
+              </div>
+            ) : canManageOrganizers ? (
               <SendOrganizerForm clientId={client.id} templates={templates ?? []} />
             ) : (
               <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
