@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -33,11 +34,11 @@ function targetLabel(targetType: string) {
   return targetType.replaceAll("_", " ");
 }
 
-function targetHref(row: AuditRow) {
-  if (row.target_type === "client") return "/dashboard/clients/" + row.target_id;
-  if (row.target_type === "document") return "/dashboard/documents/" + row.target_id;
-  if (row.target_type === "organizer") return "/dashboard/organizers/" + row.target_id;
-  if (row.target_type === "tax_return_job") return "/dashboard/work/" + row.target_id;
+function targetHref(row: AuditRow): Route | null {
+  if (row.target_type === "client") return ("/dashboard/clients/" + row.target_id) as Route;
+  if (row.target_type === "document") return ("/dashboard/documents/" + row.target_id) as Route;
+  if (row.target_type === "organizer") return ("/dashboard/organizers/" + row.target_id) as Route;
+  if (row.target_type === "tax_return_job") return ("/dashboard/work/" + row.target_id) as Route;
   if (row.target_type === "profile" || row.target_type === "staff_invitation") return "/dashboard/team";
   if (row.target_type === "template") return "/dashboard/templates";
   return null;
