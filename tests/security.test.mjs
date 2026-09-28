@@ -345,6 +345,80 @@ test('database authorization and organizer lifecycle', async () => {
     await denied(id(10), `select prepare_client_invitation('${id(94)}')`, /different access/);
     await db.exec(`update clients set status='archived' where id='${id(91)}'`);
     await denied(id(10), `select prepare_client_invitation('${id(91)}')`, /Restore this client/);
+    // Clients can update only their own contact details through the guarded RPC.
+    await denied(
+      id(11),
+      `update clients set phone='+1 999 999 9999' where id='${id(20)}'`,
+      /row-level security|permission denied/
+    );
+
+    const clientContact = (await asUser(
+      id(11),
+      `select (
+        update_client_contact_details(
+          '${id(20)}',
+          '+1 555 0100',
+          '10 Main Street',
+          'Suite 2',
+          'Austin',
+          'TX',
+          '78701',
+          'United States',
+          'portal'
+        )
+      ).phone as phone`
+    )).rows[0];
+    assert.equal(clientContact.phone,'+1 555 0100');
+
+    const storedContact = (await db.query(
+      `select phone,address_line1,city,state_region,postal_code,country,
+              preferred_contact_method,contact_updated_at
+       from clients where id='${id(20)}'`
+    )).rows[0];
+    assert.equal(storedContact.address_line1,'10 Main Street');
+    assert.equal(storedContact.city,'Austin');
+    assert.equal(storedContact.state_region,'TX');
+    assert.equal(storedContact.postal_code,'78701');
+    assert.equal(storedContact.country,'United States');
+    assert.equal(storedContact.preferred_contact_method,'portal');
+    assert.ok(storedContact.contact_updated_at);
+
+    await denied(
+      id(11),
+      `select update_client_contact_details(
+        '${id(21)}',null,null,null,null,null,null,null,'portal'
+      )`,
+      /Not authorized/
+    );
+
+    await asUser(
+      id(10),
+      `select update_client_contact_details(
+        '${id(20)}',
+        '+1 555 0101',
+        '10 Main Street',
+        null,
+        'Austin',
+        'TX',
+        '78701',
+        'United States',
+        'phone'
+      )`
+    );
+    const staffUpdatedContact = (await db.query(
+      `select phone,preferred_contact_method from clients where id='${id(20)}'`
+    )).rows[0];
+    assert.equal(staffUpdatedContact.phone,'+1 555 0101');
+    assert.equal(staffUpdatedContact.preferred_contact_method,'phone');
+
+    await denied(
+      id(14),
+      `select update_client_contact_details(
+        '${id(20)}',null,null,null,null,null,null,null,'portal'
+      )`,
+      /Not authorized/
+    );
+
     // General client messaging is immutable, idempotent, and tenant isolated.
     await denied(
       id(11),
