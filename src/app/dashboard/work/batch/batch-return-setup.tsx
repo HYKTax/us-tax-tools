@@ -8,6 +8,12 @@ type ClientOption = {
   primary_contact_name: string;
   email: string;
   client_type: string;
+  tag_ids: string[];
+};
+
+type TagOption = {
+  id: string;
+  name: string;
 };
 
 type StaffOption = { id: string; full_name: string };
@@ -16,15 +22,18 @@ export function BatchReturnSetup({
   clients,
   preparers,
   reviewers,
+  tags,
 }: {
   clients: ClientOption[];
   preparers: StaffOption[];
   reviewers: StaffOption[];
+  tags: TagOption[];
 }) {
   const currentYear = new Date().getFullYear();
   const [taxYear, setTaxYear] = useState(currentYear);
   const [returnType, setReturnType] = useState("1040");
   const [clientType, setClientType] = useState("individual");
+  const [tagId, setTagId] = useState("");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dueDate, setDueDate] = useState("");
@@ -37,10 +46,11 @@ export function BatchReturnSetup({
     const q = query.trim().toLowerCase();
     return clients.filter((client) => {
       if (clientType && client.client_type !== clientType) return false;
+      if (tagId && !client.tag_ids.includes(tagId)) return false;
       if (!q) return true;
       return `${client.primary_contact_name} ${client.email}`.toLowerCase().includes(q);
     });
-  }, [clients, clientType, query]);
+  }, [clients, clientType, tagId, query]);
 
   function toggle(id: string) {
     setSelected((previous) => {
@@ -70,7 +80,7 @@ export function BatchReturnSetup({
           These values will be applied to every newly created return in this batch.
         </p>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <label className="text-sm font-medium text-slate-700">
             Tax year
             <input
@@ -121,6 +131,22 @@ export function BatchReturnSetup({
               <option value="">All active clients</option>
               <option value="individual">Individuals</option>
               <option value="business">Businesses</option>
+            </select>
+          </label>
+          <label className="text-sm font-medium text-slate-700">
+            Client tag
+            <select
+              value={tagId}
+              onChange={(event) => {
+                setTagId(event.target.value);
+                setSelected(new Set());
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5"
+            >
+              <option value="">All tags</option>
+              {tags.map((tag) => (
+                <option key={tag.id} value={tag.id}>{tag.name}</option>
+              ))}
             </select>
           </label>
         </div>
