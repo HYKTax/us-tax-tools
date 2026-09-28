@@ -38,6 +38,12 @@ export default async function PortalLayout({
                 Status
               </Link>
               <Link
+                href="/portal/messages"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              >
+                Messages
+              </Link>
+              <Link
                 href="/portal/documents"
                 className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               >
@@ -74,6 +80,12 @@ export default async function PortalLayout({
             className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
           >
             Status
+          </Link>
+          <Link
+            href="/portal/messages"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Messages
           </Link>
           <Link
             href="/portal/documents"
