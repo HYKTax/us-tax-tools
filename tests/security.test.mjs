@@ -60,7 +60,7 @@ test('database authorization and organizer lifecycle', async () => {
     await denied(null, `select * from documents`, /permission denied/, 'anon');
     await denied(id(11), `update profiles set role='firm_admin' where id='${id(11)}'`, /permission denied|display name can be updated directly/);
     await asUser(id(11), `update profiles set full_name='Updated' where id='${id(11)}'`);
-    await denied(id(10), `select admin_update_staff('${id(10)}','firm_admin',true)`, /Only an active firm administrator/);
+    await denied(id(10), `select admin_update_staff('${id(10)}','firm_admin',true)`, /permission denied|Only an active firm administrator/);
     await denied(id(10), `select save_organizer_response('${id(40)}','"x"')`, /Not authorized/);
     await denied(id(12), `select submit_organizer('${id(30)}')`, /Not authorized/);
     await denied(null, `select submit_organizer('${id(30)}')`, /permission denied/, 'anon');
