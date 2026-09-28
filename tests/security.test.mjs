@@ -492,10 +492,10 @@ test('database authorization and organizer lifecycle', async () => {
     assert.equal(bulkUpdate.updated_count,1);
 
     const bulkUpdatedJob = (await db.query(
-      `select priority,due_date from tax_return_jobs where id='${returnJobId}'`
+      `select priority,to_char(due_date,'YYYY-MM-DD') as due_date from tax_return_jobs where id='${returnJobId}'`
     )).rows[0];
     assert.equal(bulkUpdatedJob.priority,'high');
-    assert.equal(String(bulkUpdatedJob.due_date).slice(0,10),'2026-04-15');
+    assert.equal(bulkUpdatedJob.due_date,'2026-04-15');
 
     await denied(
       id(11),
