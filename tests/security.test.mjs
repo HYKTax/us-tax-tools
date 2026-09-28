@@ -395,6 +395,17 @@ test('database authorization and organizer lifecycle', async () => {
       0
     );
 
+    const usageSummary = (await asUser(
+      id(10),
+      `select get_firm_usage_summary() as summary`
+    )).rows[0].summary;
+    assert.equal(Number(usageSummary.clients) >= 1,true);
+    await denied(
+      id(11),
+      `select get_firm_usage_summary()`,
+      /Not authorized/
+    );
+
     await asUser(
       id(10),
       `update engagement_templates set body='Updated future template text' where id='${id(130)}'`
