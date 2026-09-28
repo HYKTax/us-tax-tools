@@ -7,9 +7,10 @@ const baseNavItems = [
   { href: "/dashboard/deadlines", label: "Deadlines", icon: "calendar" },
   { href: "/dashboard/tasks", label: "Tasks", icon: "tasks" },
   { href: "/dashboard/clients", label: "Clients", icon: "users" },
+  { href: "/dashboard/organizers", label: "Organizers", icon: "clipboard" },
   { href: "/dashboard/documents", label: "Documents", icon: "folder" },
   { href: "/dashboard/messages", label: "Messages", icon: "message" },
-  { href: "/dashboard/templates", label: "Organizer templates", icon: "clipboard" },
+  { href: "/dashboard/templates", label: "Templates", icon: "clipboard" },
 ] as const;
 
 const activityNavItem = { href: "/dashboard/activity", label: "Activity", icon: "activity" } as const;
