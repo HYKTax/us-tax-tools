@@ -42,6 +42,7 @@ function statusBadge(active: boolean, invitationStatus?: string | null) {
 
 const permissionRows = [
   { label: "Manage team / roles", admin: true, manager: false, reviewer: false, preparer: false },
+  { label: "View firm activity log", admin: true, manager: true, reviewer: false, preparer: false },
   { label: "Create & manage clients", admin: true, manager: true, reviewer: false, preparer: true },
   { label: "Send / edit organizers", admin: true, manager: true, reviewer: false, preparer: true },
   { label: "Review organizers", admin: true, manager: true, reviewer: true, preparer: false },
