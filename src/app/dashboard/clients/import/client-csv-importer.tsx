@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { importClientRecords, type ClientImportRow } from "../actions";
 import { parseCsv } from "@/lib/csv";
@@ -155,12 +156,12 @@ export function ClientCsvImporter() {
               type, phone, address, country, and preferred contact method.
             </p>
           </div>
-          <a
+          <Link
             href="/dashboard/clients/import/template"
             className="w-fit rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50"
           >
             Download template
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -204,7 +205,19 @@ export function ClientCsvImporter() {
                 setResult(null);
                 startTransition(async () => {
                   const response = await importClientRecords(
-                    rows.map(({ rowNumber: _rowNumber, ...row }) => row)
+                    rows.map((row) => ({
+                      primary_contact_name: row.primary_contact_name,
+                      email: row.email,
+                      client_type: row.client_type,
+                      phone: row.phone,
+                      address_line1: row.address_line1,
+                      address_line2: row.address_line2,
+                      city: row.city,
+                      state_region: row.state_region,
+                      postal_code: row.postal_code,
+                      country: row.country,
+                      preferred_contact_method: row.preferred_contact_method,
+                    }))
                   );
                   if (response.error) {
                     setResult(response.error);
