@@ -184,6 +184,12 @@ export default async function WorkPage({
           >
             Export CSV
           </Link>
+          <Link
+            href="/dashboard/work/batch"
+            className="w-fit rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+          >
+            Batch setup
+          </Link>
           <Link href="/dashboard/clients" className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
             Create return from client
           </Link>
