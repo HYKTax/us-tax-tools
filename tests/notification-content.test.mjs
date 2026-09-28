@@ -35,3 +35,17 @@ test("organizer notifications preserve client and staff routing", () => {
   assert.match(staff.text, /\/dashboard\/organizers\/org-123/);
   assert.equal(notificationLabels.tax_return_review_approved, "Tax return review approved");
 });
+
+
+test("released final-return notifications send clients to Returns", () => {
+  const result = notificationContent("tax_return_copy_released", {
+    organizerId: null,
+    taxReturnJobId: "return-456",
+    forClient: true,
+    siteUrl: "https://portal.example.com",
+  });
+
+  assert.equal(result.subject, "Final tax return available");
+  assert.match(result.text, /https:\/\/portal\.example\.com\/portal\/returns/);
+  assert.doesNotMatch(result.text, /dashboard\/work/);
+});
