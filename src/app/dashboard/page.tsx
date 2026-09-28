@@ -44,6 +44,8 @@ export default async function DashboardPage() {
     { count: waitingReturns },
     { count: reviewReturns },
     { count: pendingDocuments },
+    { count: openDocumentRequests },
+    { count: receivedDocumentRequests },
     { data: recentReturns },
     { data: recentDocuments },
   ] = await Promise.all([
@@ -77,6 +79,8 @@ export default async function DashboardPage() {
     supabase.from("tax_return_jobs").select("id", { count: "exact", head: true }).eq("status", "waiting_on_client"),
     supabase.from("tax_return_jobs").select("id", { count: "exact", head: true }).eq("status", "review"),
     supabase.from("documents").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
+    supabase.from("document_requests").select("id", { count: "exact", head: true }).eq("status", "open"),
+    supabase.from("document_requests").select("id", { count: "exact", head: true }).eq("status", "received"),
     supabase
       .from("tax_return_jobs")
       .select("id, client_id, tax_year, return_type, status, priority, due_date, updated_at, clients(primary_contact_name)")
@@ -165,11 +169,16 @@ export default async function DashboardPage() {
           <h2 className="font-semibold text-slate-950">Firm overview</h2>
           <p className="mt-1 text-sm text-slate-500">Workload and client activity across the firm.</p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard label="Active clients" value={activeClients ?? 0} helper="Clients with active portal records" />
         <MetricCard label="Waiting on clients" value={waitingReturns ?? 0} helper="Returns blocked by client action" />
         <MetricCard label="In review" value={reviewReturns ?? 0} helper="Returns awaiting reviewer action" />
         <MetricCard label="New documents" value={pendingDocuments ?? 0} helper="Documents pending staff review" />
+        <Link href="/dashboard/requests" className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition hover:bg-amber-100/70">
+          <p className="text-sm font-medium text-amber-700">Document requests</p>
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">{openDocumentRequests ?? 0}</p>
+          <p className="mt-1 text-xs text-amber-700">{receivedDocumentRequests ?? 0} received and waiting for review</p>
+        </Link>
         </div>
       </section>
 
