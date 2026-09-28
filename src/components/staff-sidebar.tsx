@@ -13,6 +13,7 @@ const baseNavItems = [
   { href: "/dashboard/templates", label: "Templates", icon: "clipboard" },
 ] as const;
 
+const readinessNavItem = { href: "/dashboard/readiness", label: "Readiness", icon: "readiness" } as const;
 const analyticsNavItem = { href: "/dashboard/analytics", label: "Analytics", icon: "analytics" } as const;
 const workloadNavItem = { href: "/dashboard/workload", label: "Team workload", icon: "workload" } as const;
 const activityNavItem = { href: "/dashboard/activity", label: "Activity", icon: "activity" } as const;
@@ -50,6 +51,10 @@ function Icon({ name }: { name: string }) {
     return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="M8 14h2M14 14h2M8 18h2"/></svg>;
   }
 
+  if (name === "readiness") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M12 3 3 7v5c0 5.5 3.8 8.7 9 10 5.2-1.3 9-4.5 9-10V7z"/><path d="m8 12 2.5 2.5L16 9"/></svg>;
+  }
+
   if (name === "analytics") {
     return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/><path d="m4 7 5-3 5 4 5-5"/></svg>;
   }
@@ -78,7 +83,7 @@ export function StaffSidebar({
 }) {
   const navItems = [
     ...baseNavItems,
-    ...(canViewActivity ? [analyticsNavItem, workloadNavItem, activityNavItem] : []),
+    ...(canViewActivity ? [readinessNavItem, analyticsNavItem, workloadNavItem, activityNavItem] : []),
     ...(canManageTeam ? [adminNavItem, settingsNavItem] : []),
   ];
 
