@@ -62,15 +62,23 @@ export default async function DocumentRequestsPage() {
 
   return (
     <div className="flex flex-col gap-7">
-      <section>
-        <p className="text-sm font-semibold text-blue-600">Document collection</p>
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-semibold text-blue-600">Document collection</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
           Document requests
         </h1>
-        <p className="mt-2 max-w-3xl text-slate-500">
-          Request individual tax documents securely without creating a full organizer.
-          Client uploads attach directly to the request and flow into Document Center.
-        </p>
+          <p className="mt-2 max-w-3xl text-slate-500">
+            Request individual tax documents securely without creating a full organizer.
+            Client uploads attach directly to the request and flow into Document Center.
+          </p>
+        </div>
+        <a
+          href="/dashboard/requests/batch"
+          className="w-fit rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+        >
+          Batch requests
+        </a>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
