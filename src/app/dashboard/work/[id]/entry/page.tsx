@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { hasStaffPermission } from "@/lib/staff-permissions";
@@ -99,12 +98,12 @@ export default async function TaxEntryAssistantPage({
   return (
     <div className="flex flex-col gap-7">
       <section>
-        <Link
-          href={("/dashboard/work/" + job.id) as "/dashboard/work/[id]"}
+        <a
+          href={"/dashboard/work/" + job.id}
           className="text-sm font-semibold text-blue-600 hover:text-blue-700"
         >
           ← Return workspace
-        </Link>
+        </a>
         <div className="mt-4 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
           <div>
             <p className="text-sm font-semibold text-blue-600">Tax software entry assistant</p>
