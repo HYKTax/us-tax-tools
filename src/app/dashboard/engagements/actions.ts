@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { hasStaffPermission } from "@/lib/staff-permissions";
+import { scheduleNotificationEmails } from "@/lib/notifications";
 
 export type EngagementActionResult = {
   success?: boolean;
@@ -82,6 +83,8 @@ export async function sendEngagementToClient(
   });
 
   if (error) return { error: error.message };
+
+  scheduleNotificationEmails();
 
   revalidatePath("/dashboard/engagements");
   revalidatePath("/dashboard/clients/" + clientId);
@@ -170,6 +173,8 @@ export async function sendEngagementsBatch(input: {
   const row = Array.isArray(data) ? data[0] : data;
   const created = Number(row?.created_count ?? 0);
   const skipped = Number(row?.skipped_count ?? 0);
+
+  scheduleNotificationEmails();
 
   revalidatePath("/dashboard/engagements");
   revalidatePath("/portal/engagements");
