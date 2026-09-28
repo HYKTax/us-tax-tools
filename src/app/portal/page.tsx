@@ -34,6 +34,7 @@ export default async function PortalPage() {
     { data: documents },
     { count: releasedReturnCount },
     { count: openDocumentRequests },
+    { count: pendingEngagements },
     { data: firm },
   ] = await Promise.all([
     supabase.from("organizers").select("id, title, tax_year, status").order("tax_year", { ascending: false }),
@@ -47,6 +48,10 @@ export default async function PortalPage() {
       .from("document_requests")
       .select("id", { count: "exact", head: true })
       .eq("status", "open"),
+    supabase
+      .from("client_engagements")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "sent"),
     profile
       ? supabase
           .from("firms")
@@ -59,7 +64,10 @@ export default async function PortalPage() {
   const rows = (organizers ?? []) as OrganizerRow[];
   const openItems = rows.filter((row) => ["sent", "in_progress"].includes(row.status));
   const firstName = profile?.full_name?.split(" ")[0] || "there";
-  const actionCount = openItems.length + (openDocumentRequests ?? 0);
+  const actionCount =
+    openItems.length +
+    (openDocumentRequests ?? 0) +
+    (pendingEngagements ?? 0);
 
   return (
     <div className="flex flex-col gap-8">
@@ -135,6 +143,30 @@ export default async function PortalPage() {
           </p>
         </Link>
       </section>
+
+      {(pendingEngagements ?? 0) > 0 && (
+        <Link
+          href="/portal/engagements"
+          className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition hover:border-amber-300"
+        >
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-amber-700">
+                Action needed
+              </span>
+              <h2 className="mt-3 text-lg font-semibold text-amber-950">
+                Engagement acknowledgment pending
+              </h2>
+              <p className="mt-1 text-sm text-amber-800">
+                {pendingEngagements} engagement{pendingEngagements === 1 ? "" : "s"} waiting for your review.
+              </p>
+            </div>
+            <span className="text-sm font-semibold text-amber-700">
+              Review engagements →
+            </span>
+          </div>
+        </Link>
+      )}
 
       {(releasedReturnCount ?? 0) > 0 && (
         <Link
