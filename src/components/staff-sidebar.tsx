@@ -9,6 +9,7 @@ const baseNavItems = [
   { href: "/dashboard/clients", label: "Clients", icon: "users" },
   { href: "/dashboard/organizers", label: "Organizers", icon: "clipboard" },
   { href: "/dashboard/documents", label: "Documents", icon: "folder" },
+  { href: "/dashboard/requests", label: "Document requests", icon: "request" },
   { href: "/dashboard/messages", label: "Messages", icon: "message" },
   { href: "/dashboard/templates", label: "Templates", icon: "clipboard" },
 ] as const;
@@ -29,6 +30,10 @@ function Icon({ name }: { name: string }) {
 
   if (name === "clipboard") {
     return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 9h6M9 13h6M9 17h4"/></svg>;
+  }
+
+  if (name === "request") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 11h6M9 15h6"/><path d="M3 7v13h3"/></svg>;
   }
 
   if (name === "folder") {
