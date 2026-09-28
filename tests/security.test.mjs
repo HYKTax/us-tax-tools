@@ -1199,6 +1199,31 @@ test('database authorization and organizer lifecycle', async () => {
       1
     );
 
+    const accessedPath = (await asUser(
+      id(11),
+      `select record_return_copy_access('${id(320)}') as storage_path`
+    )).rows[0].storage_path;
+    assert.equal(accessedPath,finalPath);
+    assert.equal(
+      (await asUser(
+        id(10),
+        `select count(*)::int as n
+         from document_access_events
+         where document_id='${id(320)}'`
+      )).rows[0].n,
+      1
+    );
+    await denied(
+      id(12),
+      `select record_return_copy_access('${id(320)}')`,
+      /Return document not found/
+    );
+    await denied(
+      id(10),
+      `select record_return_copy_access('${id(320)}')`,
+      /Client account required/
+    );
+
     await asUser(
       id(14),
       `select set_return_copy_visibility('${id(320)}',false)`
@@ -1211,6 +1236,11 @@ test('database authorization and organizer lifecycle', async () => {
     assert.equal(
       (await asUser(id(11), `select name from storage.objects where name='${finalPath}'`)).rows.length,
       0
+    );
+    await denied(
+      id(11),
+      `select record_return_copy_access('${id(320)}')`,
+      /Return document not found/
     );
     assert.equal(
       (await asUser(
