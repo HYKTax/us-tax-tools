@@ -423,6 +423,118 @@ test('database authorization and organizer lifecycle', async () => {
       )).rows[0].read_at
     );
 
+    // Ad-hoc document requests are staff-created, client-visible, tenant isolated, and sync from uploads.
+    const documentRequestId = (await asUser(
+      id(10),
+      `select (create_document_request(
+        '${id(20)}',
+        'Upload brokerage 1099',
+        'Please upload the complete consolidated statement.',
+        '2026-10-05'
+      )).id as id`
+    )).rows[0].id;
+
+    assert.equal(
+      (await asUser(
+        id(11),
+        `select title,status from document_requests where id='${documentRequestId}'`
+      )).rows[0].status,
+      'open'
+    );
+    assert.equal(
+      (await asUser(
+        id(12),
+        `select id from document_requests where id='${documentRequestId}'`
+      )).rows.length,
+      0
+    );
+    await denied(
+      id(11),
+      `select create_document_request('${id(20)}','Client bypass',null,null)`,
+      /Not authorized/
+    );
+    await denied(
+      id(11),
+      `update document_requests set status='cancelled' where id='${documentRequestId}'`,
+      /row-level security|permission denied/
+    );
+
+    assert.equal(
+      (await asUser(
+        id(11),
+        `select count(*)::int as n from notifications
+         where kind='document_request' and subject_client_id='${id(20)}'`
+      )).rows[0].n,
+      1
+    );
+
+    const requestedPath = `${id(1)}/${id(20)}/requests/${documentRequestId}/brokerage-1099.pdf`;
+    await asUser(
+      id(11),
+      `insert into storage.objects(bucket_id,name)
+       values ('client-documents','${requestedPath}')`
+    );
+    await asUser(
+      id(11),
+      `insert into documents(
+        id,firm_id,client_id,uploaded_by,storage_path,file_name,
+        mime_type,size_bytes,document_kind,document_request_id
+      ) values (
+        '${id(65)}','${id(1)}','${id(20)}','${id(11)}',
+        '${requestedPath}','brokerage-1099.pdf','application/pdf',
+        900,'source','${documentRequestId}'
+      )`
+    );
+
+    const receivedRequest = (await db.query(
+      `select status,received_at from document_requests where id='${documentRequestId}'`
+    )).rows[0];
+    assert.equal(receivedRequest.status,'received');
+    assert.ok(receivedRequest.received_at);
+    assert.equal(
+      (await asUser(
+        id(10),
+        `select count(*)::int as n from notifications
+         where kind='document_received' and subject_client_id='${id(20)}'`
+      )).rows[0].n,
+      1
+    );
+
+    await denied(
+      id(10),
+      `update documents
+       set document_request_id='${documentRequestId}',client_id='${id(21)}',firm_id='${id(2)}'
+       where id='${id(62)}'`,
+      /same client and firm|Document request must belong/
+    );
+
+    await asUser(
+      id(10),
+      `update documents set status='reviewed' where id='${id(65)}'`
+    );
+    const reviewedRequest = (await db.query(
+      `select status,reviewed_at from document_requests where id='${documentRequestId}'`
+    )).rows[0];
+    assert.equal(reviewedRequest.status,'reviewed');
+    assert.ok(reviewedRequest.reviewed_at);
+
+    const lateRequestPath = `${id(1)}/${id(20)}/requests/${documentRequestId}/late.pdf`;
+    await asUser(
+      id(11),
+      `insert into storage.objects(bucket_id,name)
+       values ('client-documents','${lateRequestPath}')`
+    );
+    await denied(
+      id(11),
+      `insert into documents(
+        firm_id,client_id,uploaded_by,storage_path,file_name,document_request_id
+      ) values (
+        '${id(1)}','${id(20)}','${id(11)}',
+        '${lateRequestPath}','late.pdf','${documentRequestId}'
+      )`,
+      /no longer accepting uploads/
+    );
+
     // Message notifications route to the other party, are idempotent, and cannot leak across firms.
     const staffMessage = (await asUser(id(10), `select (post_organizer_message('${id(30)}','Please check the document','${id(201)}')).id as id`)).rows[0].id;
     await asUser(id(10), `select post_organizer_message('${id(30)}','Please check the document','${id(201)}')`);
