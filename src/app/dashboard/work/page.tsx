@@ -29,6 +29,8 @@ type WorkRow = {
   priority: string;
   due_date: string | null;
   updated_at: string;
+  preparer_id: string | null;
+  reviewer_id: string | null;
   preparer: { full_name: string } | null;
   reviewer: { full_name: string } | null;
   clients: { primary_contact_name: string; client_type: string } | null;
@@ -70,7 +72,7 @@ export default async function WorkPage() {
     supabase
     .from("tax_return_jobs")
     .select(
-      "id, client_id, tax_year, return_type, status, priority, due_date, updated_at, clients(primary_contact_name, client_type), preparer:profiles!tax_return_jobs_preparer_id_fkey(full_name), reviewer:profiles!tax_return_jobs_reviewer_id_fkey(full_name)"
+      "id, client_id, tax_year, return_type, status, priority, due_date, updated_at, preparer_id, reviewer_id, clients(primary_contact_name, client_type), preparer:profiles!tax_return_jobs_preparer_id_fkey(full_name), reviewer:profiles!tax_return_jobs_reviewer_id_fkey(full_name)"
     )
     .order("due_date", { ascending: true, nullsFirst: false })
     .order("updated_at", { ascending: false })
@@ -90,6 +92,13 @@ export default async function WorkPage() {
 
   const rows = (data ?? []) as unknown as WorkRow[];
   const myReviews = (reviewResult.data ?? []) as unknown as ReviewQueueRow[];
+  const myPreparation = profile
+    ? rows.filter(
+        (row) =>
+          row.preparer_id === profile.id &&
+          !["review", "ready_to_file", "e_filed", "accepted", "completed"].includes(row.status)
+      )
+    : [];
   const waiting = rows.filter((row) => row.status === "waiting_on_client").length;
   const review = rows.filter((row) => row.status === "review").length;
   const filing = rows.filter((row) => ["ready_to_file", "e_filed", "rejected"].includes(row.status)).length;
@@ -110,7 +119,22 @@ export default async function WorkPage() {
         </Link>
       </section>
 
-      <section className={"grid gap-4 sm:grid-cols-2 " + (canReviewReturns ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+          <p className="text-sm font-semibold text-blue-700">My preparation queue</p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-blue-950">{myPreparation.length}</p>
+          <p className="mt-1 text-xs text-blue-700">Returns assigned to you before final review</p>
+        </div>
+        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5 shadow-sm">
+          <p className="text-sm font-semibold text-violet-700">My review queue</p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-violet-950">{myReviews.length}</p>
+          <p className="mt-1 text-xs text-violet-700">
+            {canReviewReturns ? "Formal reviews assigned to you" : "Your role does not include return review"}
+          </p>
+        </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Waiting on clients</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{waiting}</p>
@@ -131,14 +155,56 @@ export default async function WorkPage() {
           <p className="mt-2 text-2xl font-semibold text-slate-950">{completed}</p>
           <p className="mt-1 text-xs text-slate-500">Finished return work</p>
         </div>
-        {canReviewReturns && (
-          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5 shadow-sm">
-            <p className="text-sm text-violet-700">My review queue</p>
-            <p className="mt-2 text-2xl font-semibold text-violet-950">{myReviews.length}</p>
-            <p className="mt-1 text-xs text-violet-700">Assigned returns awaiting your review</p>
-          </div>
-        )}
       </section>
+
+      {myPreparation.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
+          <div className="border-b border-blue-100 bg-blue-50 px-5 py-4">
+            <h2 className="font-semibold text-blue-950">My preparation queue</h2>
+            <p className="mt-1 text-sm text-blue-700">
+              Your assigned returns that still need preparation work before final review.
+            </p>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {myPreparation.slice(0, 12).map((row) => {
+              const stage = stageFor(row.status);
+              return (
+                <Link
+                  key={row.id}
+                  href={`/dashboard/work/${row.id}`}
+                  className="flex flex-col justify-between gap-4 px-5 py-4 transition hover:bg-blue-50/40 lg:flex-row lg:items-center"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${stage.classes}`}>
+                        {stage.label}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                        {priorityLabel(row.priority)}
+                      </span>
+                    </div>
+                    <p className="mt-2 font-semibold text-slate-950">
+                      {row.tax_year} {row.return_type} · {row.clients?.primary_contact_name ?? "Client"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Reviewer {row.reviewer?.full_name ?? "not assigned"}
+                      {row.due_date
+                        ? ` · Due ${new Date(row.due_date + "T00:00:00").toLocaleDateString()}`
+                        : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold text-blue-600">Prepare →</span>
+                </Link>
+              );
+            })}
+          </div>
+          {myPreparation.length > 12 && (
+            <p className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
+              Showing the first 12 of {myPreparation.length} assigned preparation returns.
+            </p>
+          )}
+        </section>
+      )}
 
       {canReviewReturns && myReviews.length > 0 && (
         <section className="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
