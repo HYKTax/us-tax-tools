@@ -30,11 +30,16 @@ test('database authorization and organizer lifecycle', async () => {
     await db.exec(`
       alter table auth.users disable trigger on_auth_user_created;
       insert into firms(id,name) values ('${id(1)}','A'),('${id(2)}','B');
-      insert into auth.users(id,email) values ('${id(10)}','staff@a.test'),('${id(11)}','client@a.test'),('${id(12)}','client@b.test');
+      insert into auth.users(id,email) values
+        ('${id(10)}','staff@a.test'),
+        ('${id(11)}','client@a.test'),
+        ('${id(12)}','client@b.test'),
+        ('${id(14)}','reviewer@a.test');
       insert into profiles(id,firm_id,role,full_name,email,staff_role) values
         ('${id(10)}','${id(1)}','firm_staff','Staff','staff@a.test','manager'),
         ('${id(11)}','${id(1)}','client','Client A','client@a.test',null),
-        ('${id(12)}','${id(2)}','client','Client B','client@b.test',null);
+        ('${id(12)}','${id(2)}','client','Client B','client@b.test',null),
+        ('${id(14)}','${id(1)}','firm_staff','Reviewer','reviewer@a.test','reviewer');
       insert into clients(id,firm_id,profile_id,primary_contact_name,email,created_by) values
         ('${id(20)}','${id(1)}','${id(11)}','A','client@a.test','${id(10)}'),
         ('${id(21)}','${id(2)}','${id(12)}','B','client@b.test','${id(12)}');
@@ -179,5 +184,91 @@ test('database authorization and organizer lifecycle', async () => {
     assert.notEqual(retry.lease_id,notice.lease_id);
     await asUser(null, `select finish_notification_email('${retry.id}','${retry.lease_id}',true)`, 'service_role');
     assert.equal((await db.query(`select email_status from notifications where id='${retry.id}'`)).rows[0].email_status,'sent');
+
+    // Final-return review is a controlled cycle. Direct table updates cannot
+    // bypass it, and a non-admin preparer cannot approve their own work.
+    const returnJobId = (await asUser(id(10), `
+      insert into tax_return_jobs(
+        firm_id,client_id,tax_year,return_type,status,preparer_id,reviewer_id,created_by
+      ) values (
+        '${id(1)}','${id(20)}',2025,'1040','preparing','${id(10)}','${id(14)}','${id(10)}'
+      ) returning id
+    `)).rows[0].id;
+
+    await denied(
+      id(10),
+      `update tax_return_jobs set status='ready_to_file' where id='${returnJobId}'`,
+      /permission denied/
+    );
+
+    const firstReviewId = (await asUser(
+      id(10),
+      `select request_tax_return_review('${returnJobId}','Ready for final review') as id`
+    )).rows[0].id;
+
+    assert.equal(
+      (await db.query(`select status from tax_return_jobs where id='${returnJobId}'`)).rows[0].status,
+      'review'
+    );
+
+    await denied(
+      id(10),
+      `select resolve_tax_return_review('${firstReviewId}','approved','Self approval')`,
+      /preparer cannot approve|preparer cannot approve or resolve/
+    );
+
+    await asUser(
+      id(14),
+      `select resolve_tax_return_review('${firstReviewId}','approved','Reviewed and approved')`
+    );
+
+    let reviewedJob = (await db.query(
+      `select status,efile_status,review_version from tax_return_jobs where id='${returnJobId}'`
+    )).rows[0];
+    assert.equal(reviewedJob.status,'ready_to_file');
+    assert.equal(reviewedJob.efile_status,'ready');
+
+    await asUser(id(10), `
+      select update_tax_return_job(
+        '${returnJobId}',
+        'preparing',
+        'normal',
+        null,
+        '${id(10)}',
+        '${id(14)}',
+        'not_needed',
+        'not_ready'
+      )
+    `);
+    reviewedJob = (await db.query(
+      `select status,efile_status,review_version from tax_return_jobs where id='${returnJobId}'`
+    )).rows[0];
+    assert.equal(reviewedJob.status,'preparing');
+    assert.equal(reviewedJob.efile_status,'not_ready');
+    assert.equal(reviewedJob.review_version,2);
+
+    await denied(
+      id(10),
+      `select update_tax_return_job(
+        '${returnJobId}','ready_to_file','normal',null,
+        '${id(10)}','${id(14)}','not_needed','ready'
+      )`,
+      /Reviewer approval is required/
+    );
+
+    const secondReviewId = (await asUser(
+      id(10),
+      `select request_tax_return_review('${returnJobId}',null) as id`
+    )).rows[0].id;
+
+    await asUser(
+      id(14),
+      `select resolve_tax_return_review('${secondReviewId}','changes_requested','Correct the return before filing')`
+    );
+    reviewedJob = (await db.query(
+      `select status,review_version from tax_return_jobs where id='${returnJobId}'`
+    )).rows[0];
+    assert.equal(reviewedJob.status,'preparing');
+    assert.equal(reviewedJob.review_version,3);
   } finally { await db.close(); }
 });
