@@ -558,6 +558,36 @@ test('database authorization and organizer lifecycle', async () => {
       1
     );
 
+    const batchRequestResult = (await asUser(
+      id(10),
+      `select * from create_document_requests_batch(
+        array['${id(20)}'::uuid,'${id(22)}'::uuid],
+        'Upload brokerage 1099',
+        'Batch request test',
+        '2026-10-05'
+      )`
+    )).rows[0];
+    assert.equal(batchRequestResult.created_count,1);
+    assert.equal(batchRequestResult.skipped_count,1);
+    assert.equal(
+      (await asUser(
+        id(13),
+        `select count(*)::int as n from document_requests
+         where client_id='${id(22)}' and title='Upload brokerage 1099'`
+      )).rows[0].n,
+      1
+    );
+    await denied(
+      id(10),
+      `select * from create_document_requests_batch(
+        array['${id(20)}'::uuid,'${id(21)}'::uuid],
+        'Cross firm request',
+        null,
+        null
+      )`,
+      /unavailable or archived/
+    );
+
     const requestedPath = `${id(1)}/${id(20)}/requests/${documentRequestId}/brokerage-1099.pdf`;
     await asUser(
       id(11),
