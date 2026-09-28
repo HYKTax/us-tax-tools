@@ -199,11 +199,15 @@ test('database authorization and organizer lifecycle', async () => {
     // Two 1099-INTs should not be treated as conflicting just because both
     // contain interest_income with different values.
     await db.exec(`
+      insert into storage.objects(bucket_id,name) values
+        ('client-documents','${id(1)}/${id(20)}/interest-a.pdf'),
+        ('client-documents','${id(1)}/${id(20)}/interest-b.pdf');
+
       insert into documents(
         id,firm_id,client_id,uploaded_by,storage_path,file_name,status,tax_return_job_id
       ) values
-        ('${id(301)}','${id(1)}','${id(20)}','${id(10)}','a/interest-a.pdf','interest-a.pdf','reviewed','${returnJobId}'),
-        ('${id(302)}','${id(1)}','${id(20)}','${id(10)}','a/interest-b.pdf','interest-b.pdf','reviewed','${returnJobId}');
+        ('${id(301)}','${id(1)}','${id(20)}','${id(10)}','${id(1)}/${id(20)}/interest-a.pdf','interest-a.pdf','reviewed','${returnJobId}'),
+        ('${id(302)}','${id(1)}','${id(20)}','${id(10)}','${id(1)}/${id(20)}/interest-b.pdf','interest-b.pdf','reviewed','${returnJobId}');
 
       insert into document_extractions(
         id,document_id,status,document_type,tax_year,fields,reviewed_by,reviewed_at
