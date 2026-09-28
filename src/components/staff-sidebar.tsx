@@ -3,6 +3,7 @@ import { Brand } from "@/components/brand";
 
 const baseNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: "grid" },
+  { href: "/dashboard/search", label: "Search", icon: "search" },
   { href: "/dashboard/work", label: "Work / Returns", icon: "work" },
   { href: "/dashboard/deadlines", label: "Deadlines", icon: "calendar" },
   { href: "/dashboard/tasks", label: "Tasks", icon: "tasks" },
@@ -23,6 +24,10 @@ const settingsNavItem = { href: "/dashboard/settings", label: "Settings", icon: 
 
 function Icon({ name }: { name: string }) {
   const common = "h-4 w-4";
+
+  if (name === "search") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>;
+  }
 
   if (name === "users") {
     return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
