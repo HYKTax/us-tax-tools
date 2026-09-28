@@ -117,7 +117,11 @@ export function Notifications({
             {rows.map((row) => (
               <li key={row.id} className={row.read_at ? "bg-white" : "bg-blue-50/50"}>
                 <Link
-                  href={`/${area}/organizers/${row.organizer_id}`}
+                  href={
+                    row.tax_return_job_id
+                      ? `/dashboard/work/${row.tax_return_job_id}`
+                      : `/${area}/organizers/${row.organizer_id}`
+                  }
                   onClick={() => {
                     setOpen(false);
                     void markNotificationRead(row.id)
@@ -131,7 +135,7 @@ export function Notifications({
                   <div className="flex items-start gap-2">
                     {!row.read_at && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-label="Unread" />}
                     <div>
-                      <p className="text-sm font-medium text-slate-900">{notificationLabels[row.kind] ?? "Organizer update"}</p>
+                      <p className="text-sm font-medium text-slate-900">{notificationLabels[row.kind] ?? "Portal update"}</p>
                       <p className="mt-1 text-xs text-slate-500">{new Date(row.created_at).toLocaleString()}</p>
                     </div>
                   </div>
