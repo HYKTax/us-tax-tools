@@ -81,6 +81,30 @@ export default async function PortalPage() {
         </p>
       </section>
 
+      {actionCount > 0 && (
+        <Link
+          href="/portal/actions"
+          className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm transition hover:border-blue-300"
+        >
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-blue-700">
+                {actionCount} open
+              </span>
+              <h2 className="mt-3 text-lg font-semibold text-blue-950">
+                Review your Action Center
+              </h2>
+              <p className="mt-1 text-sm text-blue-800">
+                Organizers, requested documents, and acknowledgments are combined in one checklist.
+              </p>
+            </div>
+            <span className="text-sm font-semibold text-blue-700">
+              Open Action Center →
+            </span>
+          </div>
+        </Link>
+      )}
+
       {firm?.portal_welcome_message && (
         <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
