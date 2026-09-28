@@ -144,6 +144,36 @@ test('database authorization and organizer lifecycle', async () => {
     await db.exec(`update profiles set is_active=true where id='${id(10)}'`);
     assert.ok((await asUser(id(10), `select id from audit_log`)).rows.length >= 0);
     assert.equal((await asUser(id(11), `select id from audit_log`)).rows.length, 0);
+
+    await asUser(id(10), `
+      insert into client_notes(id,firm_id,client_id,author_id,body)
+      values ('${id(63)}','${id(1)}','${id(20)}','${id(10)}','Manager handoff note')
+    `);
+    assert.equal(
+      (await asUser(id(14), `select body from client_notes where id='${id(63)}'`)).rows[0].body,
+      'Manager handoff note'
+    );
+    assert.equal(
+      (await asUser(id(11), `select id from client_notes where id='${id(63)}'`)).rows.length,
+      0
+    );
+    assert.equal(
+      (await asUser(id(12), `select id from client_notes where id='${id(63)}'`)).rows.length,
+      0
+    );
+    await denied(
+      id(11),
+      `insert into client_notes(firm_id,client_id,author_id,body) values ('${id(1)}','${id(20)}','${id(11)}','Client should not write internal notes')`,
+      /row-level security|permission denied/
+    );
+    await asUser(
+      id(10),
+      `update client_notes set is_pinned=true where id='${id(63)}'`
+    );
+    assert.equal(
+      (await db.query(`select is_pinned from client_notes where id='${id(63)}'`)).rows[0].is_pinned,
+      true
+    );
     const documentId = (await db.query('select id from documents limit 1')).rows[0].id;
     await db.query("insert into document_extractions(document_id,status,fields) values ($1,'completed','{}')", [documentId]);
     await denied(id(10), "update document_extractions set fields='{}'", /permission denied/);
