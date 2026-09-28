@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { hasStaffPermission } from "@/lib/staff-permissions";
+import { canonicalTaxExtractionGuidance } from "@/lib/tax-software-export";
 
 type ActionResult = { error?: string; success?: boolean; message?: string };
 
@@ -226,8 +227,8 @@ export async function runDocumentExtraction(documentId: string): Promise<ActionR
                 type: "input_text",
                 text:
                   "Classify this tax document and extract the important preparation fields. " +
-                  "Use concise normalized field names such as wages, federal_income_tax_withheld, interest_income, ordinary_dividends, payer_name, recipient_name, or identifier_last4. " +
-                  "Include flags for anything that a human reviewer should verify.",
+                  canonicalTaxExtractionGuidance +
+                  " Include flags for anything that a human reviewer should verify.",
               },
               documentInput,
             ],
