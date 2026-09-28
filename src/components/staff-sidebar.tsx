@@ -10,6 +10,7 @@ const baseNavItems = [
   { href: "/dashboard/templates", label: "Organizer templates", icon: "clipboard" },
 ] as const;
 
+const activityNavItem = { href: "/dashboard/activity", label: "Activity", icon: "activity" } as const;
 const adminNavItem = { href: "/dashboard/team", label: "Team", icon: "users" } as const;
 
 function Icon({ name }: { name: string }) {
@@ -35,11 +36,25 @@ function Icon({ name }: { name: string }) {
     return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/></svg>;
   }
 
+  if (name === "activity") {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="M2 19h20"/></svg>;
+  }
+
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
 }
 
-export function StaffSidebar({ role }: { role: "firm_admin" | "firm_staff" }) {
-  const navItems = role === "firm_admin" ? [...baseNavItems, adminNavItem] : baseNavItems;
+export function StaffSidebar({
+  canViewActivity,
+  canManageTeam,
+}: {
+  canViewActivity: boolean;
+  canManageTeam: boolean;
+}) {
+  const navItems = [
+    ...baseNavItems,
+    ...(canViewActivity ? [activityNavItem] : []),
+    ...(canManageTeam ? [adminNavItem] : []),
+  ];
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-slate-950 lg:flex lg:min-h-screen lg:flex-col">
