@@ -1,6 +1,8 @@
 export const notificationLabels: Record<string, string> = {
   message: "New organizer message",
   client_message: "New client message",
+  document_request: "New document requested",
+  document_received: "Requested document received",
   organizer_sent: "New organizer ready",
   organizer_started: "Client started their organizer",
   organizer_submitted: "Organizer submitted for review",
@@ -30,9 +32,13 @@ export function notificationContent(
   }
 
   const path = target.clientId
-    ? target.forClient
-      ? "/portal/messages"
-      : `/dashboard/messages/${target.clientId}`
+    ? kind === "client_message"
+      ? target.forClient
+        ? "/portal/messages"
+        : `/dashboard/messages/${target.clientId}`
+      : target.forClient
+        ? "/portal/documents"
+        : "/dashboard/documents"
     : target.taxReturnJobId
     ? target.forClient
       ? "/portal/returns"
