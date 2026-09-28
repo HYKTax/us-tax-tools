@@ -9,6 +9,8 @@ export function ReturnJobEditor({
   job,
   preparers,
   reviewers,
+  hasCurrentApproval,
+  reviewLocked,
 }: {
   job: {
     id: string;
@@ -23,6 +25,8 @@ export function ReturnJobEditor({
   };
   preparers: StaffOption[];
   reviewers: StaffOption[];
+  hasCurrentApproval: boolean;
+  reviewLocked: boolean;
 }) {
   const [status, setStatus] = useState(job.status);
   const [priority, setPriority] = useState(job.priority);
@@ -34,7 +38,22 @@ export function ReturnJobEditor({
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
-  const fieldClass = "mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
+  const fieldClass = "mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-400";
+  const preReviewStatuses = [
+    ["not_started", "Not started"],
+    ["waiting_on_client", "Waiting on client"],
+    ["ready_to_prepare", "Ready to prepare"],
+    ["preparing", "Preparing"],
+    ["extended", "Extended"],
+    ["rejected", "Rejected / corrections"],
+  ] as const;
+  const postReviewStatuses = [
+    ["waiting_on_signature", "Waiting on signature"],
+    ["ready_to_file", "Ready to file"],
+    ["e_filed", "E-filed"],
+    ["accepted", "Accepted"],
+    ["completed", "Completed"],
+  ] as const;
 
   return (
     <form
@@ -61,20 +80,28 @@ export function ReturnJobEditor({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-700">
           Workflow stage
-          <select value={status} onChange={(event) => setStatus(event.target.value)} className={fieldClass}>
-            <option value="not_started">Not started</option>
-            <option value="waiting_on_client">Waiting on client</option>
-            <option value="ready_to_prepare">Ready to prepare</option>
-            <option value="preparing">Preparing</option>
-            <option value="review">In review</option>
-            <option value="waiting_on_signature">Waiting on signature</option>
-            <option value="ready_to_file">Ready to file</option>
-            <option value="e_filed">E-filed</option>
-            <option value="accepted">Accepted</option>
-            <option value="rejected">Rejected</option>
-            <option value="extended">Extended</option>
-            <option value="completed">Completed</option>
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            disabled={reviewLocked}
+            className={fieldClass}
+          >
+            {reviewLocked && <option value="review">In review</option>}
+            {preReviewStatuses.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+            {hasCurrentApproval &&
+              postReviewStatuses.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
           </select>
+          <span className="mt-1.5 block text-xs font-normal leading-5 text-slate-500">
+            {reviewLocked
+              ? "Workflow and assignments are locked until the active review is resolved."
+              : hasCurrentApproval
+                ? "Reviewer approval is current, so filing stages are unlocked."
+                : "Use Return review & sign-off below to unlock filing stages."}
+          </span>
         </label>
 
         <label className="text-sm font-medium text-slate-700">
@@ -91,7 +118,7 @@ export function ReturnJobEditor({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-700">
           Preparer
-          <select value={preparerId} onChange={(event) => setPreparerId(event.target.value)} className={fieldClass}>
+          <select value={preparerId} onChange={(event) => setPreparerId(event.target.value)} disabled={reviewLocked} className={fieldClass}>
             <option value="">Unassigned</option>
             {preparers.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
           </select>
@@ -99,7 +126,7 @@ export function ReturnJobEditor({
 
         <label className="text-sm font-medium text-slate-700">
           Reviewer
-          <select value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} className={fieldClass}>
+          <select value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} disabled={reviewLocked} className={fieldClass}>
             <option value="">Unassigned</option>
             {reviewers.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
           </select>
@@ -123,12 +150,21 @@ export function ReturnJobEditor({
 
         <label className="text-sm font-medium text-slate-700">
           E-file status
-          <select value={efileStatus} onChange={(event) => setEfileStatus(event.target.value)} className={fieldClass}>
+          <select
+            value={efileStatus}
+            onChange={(event) => setEfileStatus(event.target.value)}
+            disabled={reviewLocked || !hasCurrentApproval}
+            className={fieldClass}
+          >
             <option value="not_ready">Not ready</option>
-            <option value="ready">Ready</option>
-            <option value="transmitted">Transmitted</option>
-            <option value="accepted">Accepted</option>
-            <option value="rejected">Rejected</option>
+            {hasCurrentApproval && (
+              <>
+                <option value="ready">Ready</option>
+                <option value="transmitted">Transmitted</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+              </>
+            )}
           </select>
         </label>
       </div>
