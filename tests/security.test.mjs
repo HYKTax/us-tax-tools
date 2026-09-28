@@ -370,6 +370,77 @@ test('database authorization and organizer lifecycle', async () => {
       /Not authorized/
     );
 
+    await asUser(id(10), `
+      insert into engagement_templates(id,firm_id,name,title,body,created_by)
+      values (
+        '${id(130)}','${id(1)}','Individual Engagement',
+        'Tax Preparation Engagement','Original engagement terms','${id(10)}'
+      )
+    `);
+
+    const engagementId = (await asUser(
+      id(10),
+      `select send_client_engagement('${id(20)}','${id(130)}') as id`
+    )).rows[0].id;
+
+    assert.equal(
+      (await asUser(
+        id(11),
+        `select title,body,status from client_engagements where id='${engagementId}'`
+      )).rows[0].body,
+      'Original engagement terms'
+    );
+    assert.equal(
+      (await asUser(id(12), `select id from client_engagements where id='${engagementId}'`)).rows.length,
+      0
+    );
+
+    await asUser(
+      id(10),
+      `update engagement_templates set body='Updated future template text' where id='${id(130)}'`
+    );
+    assert.equal(
+      (await db.query(
+        `select body from client_engagements where id='${engagementId}'`
+      )).rows[0].body,
+      'Original engagement terms'
+    );
+
+    await denied(
+      id(12),
+      `select acknowledge_client_engagement('${engagementId}','Wrong Client')`,
+      /Engagement not found/
+    );
+
+    const acknowledged = (await asUser(
+      id(11),
+      `select (acknowledge_client_engagement('${engagementId}','Client A')).*`
+    )).rows[0];
+    assert.equal(acknowledged.status,'acknowledged');
+    assert.equal(acknowledged.acknowledged_by,id(11));
+    assert.equal(acknowledged.acknowledged_name,'Client A');
+    assert.ok(acknowledged.acknowledged_at);
+
+    const withdrawnEngagementId = (await asUser(
+      id(10),
+      `select send_client_engagement('${id(20)}','${id(130)}') as id`
+    )).rows[0].id;
+    await asUser(
+      id(10),
+      `update client_engagements
+       set status='withdrawn',withdrawn_at=now()
+       where id='${withdrawnEngagementId}'`
+    );
+    assert.equal(
+      (await asUser(id(11), `select id from client_engagements where id='${withdrawnEngagementId}'`)).rows.length,
+      0
+    );
+    await denied(
+      id(11),
+      `select acknowledge_client_engagement('${withdrawnEngagementId}','Client A')`,
+      /no longer available/
+    );
+
     await denied(
       id(14),
       `select send_organizer('${id(20)}','${id(50)}',2026,'Reviewer bypass')`,
