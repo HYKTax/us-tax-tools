@@ -15,7 +15,12 @@ export default async function BatchWorkPage() {
   if (!profile || !hasStaffPermission(profile, "returns.manage")) notFound();
 
   const supabase = await createClient();
-  const [{ data: clients }, { data: staff }] = await Promise.all([
+  const [
+    { data: clients },
+    { data: staff },
+    { data: tags },
+    { data: tagAssignments },
+  ] = await Promise.all([
     supabase
       .from("clients")
       .select("id,primary_contact_name,email,client_type")
@@ -28,7 +33,28 @@ export default async function BatchWorkPage() {
       .in("role", ["firm_admin", "firm_staff"])
       .eq("is_active", true)
       .order("full_name"),
+    supabase
+      .from("client_tags")
+      .select("id,name")
+      .order("name")
+      .limit(200),
+    supabase
+      .from("client_tag_assignments")
+      .select("client_id,tag_id")
+      .limit(5000),
   ]);
+
+  const tagIdsByClient = new Map<string, string[]>();
+  for (const assignment of tagAssignments ?? []) {
+    const current = tagIdsByClient.get(assignment.client_id) ?? [];
+    current.push(assignment.tag_id);
+    tagIdsByClient.set(assignment.client_id, current);
+  }
+
+  const enrichedClients = (clients ?? []).map((client) => ({
+    ...client,
+    tag_ids: tagIdsByClient.get(client.id) ?? [],
+  }));
 
   const staffRows = (staff ?? []) as Array<{
     id: string;
@@ -56,7 +82,8 @@ export default async function BatchWorkPage() {
       </section>
 
       <BatchReturnSetup
-        clients={clients ?? []}
+        clients={enrichedClients}
+        tags={tags ?? []}
         preparers={staffRows
           .filter((member) => canBePreparer(member.staff_role))
           .map(({ id, full_name }) => ({ id, full_name }))}
