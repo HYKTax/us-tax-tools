@@ -33,20 +33,22 @@ export default async function DocumentsPage() {
   const { data: documents, error } = await supabase
     .from("documents")
     .select(
-      "id, client_id, tax_return_job_id, file_name, status, created_at, clients!documents_client_id_fkey(primary_contact_name), tax_return_job:tax_return_jobs(id,tax_year,return_type,status), document_extractions(status,document_type,tax_year,reviewed_at)"
+      "id, client_id, tax_return_job_id, document_kind, client_visible, file_name, status, created_at, clients!documents_client_id_fkey(primary_contact_name), tax_return_job:tax_return_jobs(id,tax_year,return_type,status), document_extractions(status,document_type,tax_year,reviewed_at)"
     )
     .order("created_at", { ascending: false })
     .limit(100);
 
   const rows = documents ?? [];
-  const pendingReview = rows.filter((doc) => doc.status === "pending_review").length;
-  const extracted = rows.filter((doc) => {
+  const sourceRows = rows.filter((doc) => doc.document_kind !== "return_copy");
+  const returnCopies = rows.filter((doc) => doc.document_kind === "return_copy").length;
+  const pendingReview = sourceRows.filter((doc) => doc.status === "pending_review").length;
+  const extracted = sourceRows.filter((doc) => {
     const extraction = Array.isArray(doc.document_extractions)
       ? doc.document_extractions[0]
       : doc.document_extractions;
     return extraction?.status === "completed";
   }).length;
-  const aiReviewed = rows.filter((doc) => {
+  const aiReviewed = sourceRows.filter((doc) => {
     const extraction = Array.isArray(doc.document_extractions)
       ? doc.document_extractions[0]
       : doc.document_extractions;
@@ -59,11 +61,11 @@ export default async function DocumentsPage() {
         <p className="text-sm font-semibold text-blue-600">Document center</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Documents</h1>
         <p className="mt-2 text-slate-500">
-          Review source files, AI-extracted fields, and the tax returns they support.
+          Review source files, AI-extracted fields, and securely managed final return copies.
         </p>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Pending document review</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{pendingReview}</p>
@@ -75,6 +77,10 @@ export default async function DocumentsPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">AI data human-reviewed</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{aiReviewed}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Final return copies</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">{returnCopies}</p>
         </div>
       </section>
 
@@ -94,7 +100,7 @@ export default async function DocumentsPage() {
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="font-semibold text-slate-950">Recent files</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Open a file to link it to a return, run AI extraction, and complete human review.
+              Source documents support preparation; final return copies are controlled delivery artifacts.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -125,12 +131,16 @@ export default async function DocumentsPage() {
                         <Link href={`/dashboard/documents/${doc.id}`} className="block truncate font-semibold text-slate-900 hover:text-blue-600">
                           {doc.file_name}
                         </Link>
-                        {extraction?.document_type && (
+                        {doc.document_kind === "return_copy" ? (
+                          <p className="mt-1 text-xs font-medium text-blue-600">
+                            Final return copy · {doc.client_visible ? "Released" : "Private"}
+                          </p>
+                        ) : extraction?.document_type ? (
                           <p className="mt-1 text-xs text-slate-500">
                             {extraction.document_type}
                             {extraction.tax_year ? ` · ${extraction.tax_year}` : ""}
                           </p>
-                        )}
+                        ) : null}
                       </td>
                       <td className="px-5 py-4">
                         <Link href={`/dashboard/clients/${doc.client_id}`} className="font-medium text-blue-600 hover:text-blue-700">
@@ -152,7 +162,9 @@ export default async function DocumentsPage() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        {!extraction ? (
+                        {doc.document_kind === "return_copy" ? (
+                          <span className="text-xs font-medium text-slate-400">Not applicable</span>
+                        ) : !extraction ? (
                           <span className="text-xs text-slate-400">Not extracted</span>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2">
@@ -170,7 +182,7 @@ export default async function DocumentsPage() {
                       <td className="px-5 py-4 text-slate-500">{new Date(doc.created_at).toLocaleDateString()}</td>
                       <td className="px-5 py-4 text-right">
                         <Link href={`/dashboard/documents/${doc.id}`} className="font-semibold text-blue-600 hover:text-blue-700">
-                          Review →
+                          {doc.document_kind === "return_copy" ? "Open →" : "Review →"}
                         </Link>
                       </td>
                     </tr>
