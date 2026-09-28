@@ -1,12 +1,33 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth";
 import { ReturnJobEditor } from "./return-job-editor";
-import { canBePreparer, canBeReviewer, type StaffOperationalRole } from "@/lib/staff-permissions";
+import { ReturnReviewPanel } from "./return-review-panel";
+import {
+  canBePreparer,
+  canBeReviewer,
+  hasStaffPermission,
+  type StaffOperationalRole,
+} from "@/lib/staff-permissions";
 
 function statusLabel(status: string) {
   return status.replaceAll("_", " ");
 }
+
+type ReturnReviewRow = {
+  id: string;
+  cycle_number: number;
+  return_version: number;
+  status: "requested" | "changes_requested" | "approved";
+  request_note: string | null;
+  resolution_note: string | null;
+  requested_at: string;
+  resolved_at: string | null;
+  requester: { full_name: string } | null;
+  reviewer: { full_name: string } | null;
+  resolver: { full_name: string } | null;
+};
 
 type ApprovedSourceValue = {
   id: string;
@@ -32,13 +53,17 @@ export default async function ReturnJobPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const profile = await getCurrentProfile();
+  if (!profile) notFound();
+  const canManageReturns = hasStaffPermission(profile, "returns.manage");
+  const canReviewReturns = hasStaffPermission(profile, "returns.review");
   const supabase = await createClient();
 
   const [{ data: job, error }, { data: staff }] = await Promise.all([
     supabase
       .from("tax_return_jobs")
       .select(
-        "id, client_id, organizer_id, tax_year, return_type, status, priority, due_date, preparer_id, reviewer_id, extension_status, extension_filed_at, efile_status, efile_transmitted_at, efile_accepted_at, completed_at, created_at, updated_at, clients(primary_contact_name, email, client_type), organizer:organizers(id,title,status)"
+        "id, client_id, organizer_id, tax_year, return_type, status, priority, due_date, preparer_id, reviewer_id, review_version, extension_status, extension_filed_at, efile_status, efile_transmitted_at, efile_accepted_at, completed_at, created_at, updated_at, clients(primary_contact_name, email, client_type), organizer:organizers(id,title,status)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -61,7 +86,7 @@ export default async function ReturnJobPage({
   const preparers = staffRows.filter((member) => canBePreparer(member.staff_role));
   const reviewers = staffRows.filter((member) => canBeReviewer(member.staff_role));
 
-  const [{ data: documents }, { data: sourceValues }] = await Promise.all([
+  const [{ data: documents }, { data: sourceValues }, { data: reviewRows }] = await Promise.all([
     supabase
       .from("documents")
       .select(
@@ -75,6 +100,13 @@ export default async function ReturnJobPage({
       .eq("tax_return_job_id", job.id)
       .order("field_name")
       .order("accepted_at", { ascending: false }),
+    supabase
+      .from("tax_return_reviews")
+      .select(
+        "id, cycle_number, return_version, status, request_note, resolution_note, requested_at, resolved_at, requester:profiles!tax_return_reviews_requested_by_fkey(full_name), reviewer:profiles!tax_return_reviews_assigned_reviewer_id_fkey(full_name), resolver:profiles!tax_return_reviews_resolved_by_fkey(full_name)"
+      )
+      .eq("tax_return_job_id", job.id)
+      .order("cycle_number", { ascending: false }),
   ]);
 
   const client = job.clients as unknown as {
@@ -105,6 +137,26 @@ export default async function ReturnJobPage({
   }
   const conflictingFields = new Set(
     [...fieldValueSets.entries()].filter(([, values]) => values.size > 1).map(([name]) => name)
+  );
+
+  const reviews = ((reviewRows ?? []) as unknown as ReturnReviewRow[]).map((review) => ({
+    id: review.id,
+    cycle_number: review.cycle_number,
+    return_version: review.return_version,
+    status: review.status,
+    request_note: review.request_note,
+    resolution_note: review.resolution_note,
+    requested_at: review.requested_at,
+    resolved_at: review.resolved_at,
+    requester_name: review.requester?.full_name ?? "Staff",
+    reviewer_name: review.reviewer?.full_name ?? "Reviewer",
+    resolver_name: review.resolver?.full_name ?? null,
+  }));
+  const openReview = reviews.find((review) => review.status === "requested") ?? null;
+  const hasCurrentApproval = reviews.some(
+    (review) =>
+      review.status === "approved" &&
+      review.return_version === job.review_version
   );
 
   return (
@@ -166,6 +218,8 @@ export default async function ReturnJobPage({
               }}
               preparers={preparers}
               reviewers={reviewers}
+              hasCurrentApproval={hasCurrentApproval}
+              reviewLocked={Boolean(openReview)}
             />
           </div>
         </div>
@@ -206,6 +260,17 @@ export default async function ReturnJobPage({
           </section>
         </div>
       </section>
+
+      <ReturnReviewPanel
+        jobId={job.id}
+        clientId={job.client_id}
+        jobStatus={job.status}
+        preparerAssigned={Boolean(job.preparer_id)}
+        reviewerAssigned={Boolean(job.reviewer_id)}
+        reviews={reviews}
+        canManageReturns={canManageReturns}
+        canReviewReturns={canReviewReturns}
+      />
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
