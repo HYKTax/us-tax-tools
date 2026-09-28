@@ -1,5 +1,6 @@
 export const notificationLabels: Record<string, string> = {
-  message: "New message",
+  message: "New organizer message",
+  client_message: "New client message",
   organizer_sent: "New organizer ready",
   organizer_started: "Client started their organizer",
   organizer_submitted: "Organizer submitted for review",
@@ -18,6 +19,7 @@ export function notificationContent(
   target: {
     organizerId: string | null;
     taxReturnJobId: string | null;
+    clientId: string | null;
     forClient: boolean;
     siteUrl: string;
   }
@@ -27,7 +29,11 @@ export function notificationContent(
     throw new Error("Invalid portal URL");
   }
 
-  const path = target.taxReturnJobId
+  const path = target.clientId
+    ? target.forClient
+      ? "/portal/messages"
+      : `/dashboard/messages/${target.clientId}`
+    : target.taxReturnJobId
     ? target.forClient
       ? "/portal/returns"
       : `/dashboard/work/${target.taxReturnJobId}`
