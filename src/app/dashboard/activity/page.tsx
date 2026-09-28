@@ -109,8 +109,7 @@ export default async function ActivityPage() {
     .limit(200);
 
   const rows = (data ?? []) as unknown as AuditRow[];
-  const now = Date.now();
-  const last24h = rows.filter((row) => now - new Date(row.created_at).getTime() <= 24 * 60 * 60 * 1000).length;
+  const actorCount = new Set(rows.map((row) => row.actor_id)).size;
   const accessEvents = rows.filter(
     (row) => row.action.startsWith("staff.") || row.action.startsWith("account.")
   ).length;
@@ -138,9 +137,9 @@ export default async function ActivityPage() {
           <p className="mt-1 text-xs text-slate-400">Most recent 200 events</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Last 24 hours</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">{last24h}</p>
-          <p className="mt-1 text-xs text-slate-400">Recent recorded actions</p>
+          <p className="text-sm text-slate-500">Team members represented</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">{actorCount}</p>
+          <p className="mt-1 text-xs text-slate-400">Actors in the events shown</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Access / review events</p>
