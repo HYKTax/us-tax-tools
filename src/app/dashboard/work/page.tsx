@@ -178,12 +178,12 @@ export default async function WorkPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a
+          <Link
             href="/dashboard/work/export"
             className="w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             Export CSV
-          </a>
+          </Link>
           <Link href="/dashboard/clients" className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
             Create return from client
           </Link>
