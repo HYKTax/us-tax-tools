@@ -476,6 +476,57 @@ test('database authorization and organizer lifecycle', async () => {
       ) returning id
     `)).rows[0].id;
 
+    const bulkUpdate = (await asUser(
+      id(10),
+      `select * from bulk_update_tax_return_jobs(
+        array['${returnJobId}'::uuid],
+        'high',
+        'keep',
+        null,
+        'keep',
+        null,
+        'set',
+        '2026-04-15'
+      )`
+    )).rows[0];
+    assert.equal(bulkUpdate.updated_count,1);
+
+    const bulkUpdatedJob = (await db.query(
+      `select priority,due_date from tax_return_jobs where id='${returnJobId}'`
+    )).rows[0];
+    assert.equal(bulkUpdatedJob.priority,'high');
+    assert.equal(String(bulkUpdatedJob.due_date).slice(0,10),'2026-04-15');
+
+    await denied(
+      id(11),
+      `select * from bulk_update_tax_return_jobs(
+        array['${returnJobId}'::uuid],
+        'normal',
+        'keep',
+        null,
+        'keep',
+        null,
+        'keep',
+        null
+      )`,
+      /Not authorized/
+    );
+
+    await denied(
+      id(10),
+      `select * from bulk_update_tax_return_jobs(
+        array['${returnJobId}'::uuid],
+        null,
+        'set',
+        '${id(11)}',
+        'keep',
+        null,
+        'keep',
+        null
+      )`,
+      /Choose an active Admin, Manager, or Preparer/
+    );
+
     // Repeated normalized fields on different source documents are valid.
     // Two 1099-INTs should not be treated as conflicting just because both
     // contain interest_income with different values.
@@ -517,6 +568,21 @@ test('database authorization and organizer lifecycle', async () => {
     assert.equal(
       (await db.query(`select status from tax_return_jobs where id='${returnJobId}'`)).rows[0].status,
       'review'
+    );
+
+    await denied(
+      id(10),
+      `select * from bulk_update_tax_return_jobs(
+        array['${returnJobId}'::uuid],
+        null,
+        'clear',
+        null,
+        'keep',
+        null,
+        'keep',
+        null
+      )`,
+      /Resolve the active review/
     );
 
     const reviewRequestedNotice = (await asUser(
