@@ -9,6 +9,8 @@ export const notificationLabels: Record<string, string> = {
   tax_return_review_requested: "Tax return ready for review",
   tax_return_review_changes_requested: "Tax return changes requested",
   tax_return_review_approved: "Tax return review approved",
+  tax_return_copy_released: "Final tax return available",
+  tax_return_copy_withdrawn: "Tax return document updated",
 };
 
 export function notificationContent(
@@ -26,7 +28,9 @@ export function notificationContent(
   }
 
   const path = target.taxReturnJobId
-    ? `/dashboard/work/${target.taxReturnJobId}`
+    ? target.forClient
+      ? "/portal/returns"
+      : `/dashboard/work/${target.taxReturnJobId}`
     : target.organizerId
       ? `/${target.forClient ? "portal" : "dashboard"}/organizers/${target.organizerId}`
       : target.forClient
