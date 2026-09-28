@@ -149,9 +149,13 @@ export function Notifications({
                         ? area === "portal"
                           ? "/portal/messages"
                           : `/dashboard/messages/${row.subject_client_id}`
-                        : area === "portal"
-                          ? "/portal/documents"
-                          : "/dashboard/documents"
+                        : row.kind === "engagement_sent"
+                          ? area === "portal"
+                            ? "/portal/engagements"
+                            : "/dashboard/engagements"
+                          : area === "portal"
+                            ? "/portal/documents"
+                            : "/dashboard/documents"
                       : row.tax_return_job_id
                         ? area === "portal"
                           ? "/portal/returns"
