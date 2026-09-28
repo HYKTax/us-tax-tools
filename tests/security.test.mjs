@@ -76,7 +76,9 @@ test('database authorization and organizer lifecycle', async () => {
     assert.equal((await asUser(id(12), `select * from organizers`)).rows.length, 0);
     await assert.rejects(db.exec(`insert into auth.users(id,email,raw_user_meta_data) values ('${id(99)}','evil@test', '{"firm_id":"${id(1)}","role":"firm_admin"}')`), /authorized invitation|valid invitation/);
     await db.exec(`insert into clients(id,firm_id,primary_contact_name,email,created_by) values ('${id(22)}','${id(1)}','Invited','invited@a.test','${id(10)}')`);
-    await db.exec(`insert into auth.users(id,email,raw_user_meta_data,invited_at) values ('${id(13)}','invited@a.test','{"firm_id":"${id(1)}","role":"client","full_name":"Invited"}',now())`);
+    // Supabase Auth can insert the auth.users row before invite metadata is attached.
+    // Provision from the server-controlled client record by email, not raw user metadata.
+    await db.exec(`insert into auth.users(id,email) values ('${id(13)}','invited@a.test')`);
     assert.equal((await db.query(`select profile_id from clients where id='${id(22)}'`)).rows[0].profile_id, id(13));
     assert.equal((await asUser(id(11), `select * from profiles where id='${id(13)}'`)).rows.length, 0);
     assert.equal((await asUser(id(11), `select * from profiles where id='${id(10)}'`)).rows.length, 1);
