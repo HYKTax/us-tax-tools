@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { hasStaffPermission } from "@/lib/staff-permissions";
+import { DuplicateTemplateButton } from "./duplicate-template-button";
 
 export default async function TemplatesPage() {
   const profile = await getCurrentProfile();
@@ -67,6 +68,12 @@ export default async function TemplatesPage() {
               <p className="mt-5 text-sm leading-6 text-slate-500">
                 Ready to send from any client profile. Questions are copied into each client organizer when sent.
               </p>
+              {canManageTemplates && (
+                <DuplicateTemplateButton
+                  templateId={template.id}
+                  sourceYear={template.tax_year}
+                />
+              )}
             </div>
           ))}
         </section>
