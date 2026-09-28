@@ -6,7 +6,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/actions";
 import { getCurrentProfile } from "@/lib/auth";
-import { staffRoleLabel } from "@/lib/staff-permissions";
+import { hasStaffPermission, staffRoleLabel } from "@/lib/staff-permissions";
 
 export default async function DashboardLayout({
   children,
@@ -19,9 +19,12 @@ export default async function DashboardLayout({
   if (!profile.is_active) redirect("/auth/access-disabled");
   if (profile.role === "client") redirect("/portal");
 
+  const canViewActivity = hasStaffPermission(profile, "audit.view");
+  const canManageTeam = hasStaffPermission(profile, "team.manage");
+
   return (
     <div className="min-h-screen bg-slate-50 lg:flex">
-      <StaffSidebar role={profile.role} />
+      <StaffSidebar canViewActivity={canViewActivity} canManageTeam={canManageTeam} />
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -53,7 +56,10 @@ export default async function DashboardLayout({
             <Link href="/dashboard/documents" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Documents</Link>
             <Link href="/dashboard/messages" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Messages</Link>
             <Link href="/dashboard/templates" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Templates</Link>
-            {profile.role === "firm_admin" && (
+            {canViewActivity && (
+              <Link href="/dashboard/activity" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Activity</Link>
+            )}
+            {canManageTeam && (
               <Link href="/dashboard/team" className="whitespace-nowrap rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-100">Team</Link>
             )}
           </nav>
