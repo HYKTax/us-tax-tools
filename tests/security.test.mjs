@@ -293,6 +293,84 @@ test('database authorization and organizer lifecycle', async () => {
     await denied(id(10), `select prepare_client_invitation('${id(94)}')`, /different access/);
     await db.exec(`update clients set status='archived' where id='${id(91)}'`);
     await denied(id(10), `select prepare_client_invitation('${id(91)}')`, /Restore this client/);
+    // General client messaging is immutable, idempotent, and tenant isolated.
+    await denied(
+      id(11),
+      `insert into client_messages(firm_id,client_id,author_id,body,request_id)
+       values ('${id(1)}','${id(20)}','${id(11)}','Bypass','${id(401)}')`,
+      /permission denied/
+    );
+
+    const clientThreadMessage = (await asUser(
+      id(11),
+      `select (post_client_message('${id(20)}','Question for my tax professional','${id(402)}')).id as id`
+    )).rows[0].id;
+
+    assert.equal(
+      (await asUser(
+        id(10),
+        `select body from client_messages where id='${clientThreadMessage}'`
+      )).rows[0].body,
+      'Question for my tax professional'
+    );
+    assert.equal(
+      (await asUser(
+        id(12),
+        `select id from client_messages where id='${clientThreadMessage}'`
+      )).rows.length,
+      0
+    );
+
+    const retriedClientThreadMessage = (await asUser(
+      id(11),
+      `select (post_client_message('${id(20)}','Question for my tax professional','${id(402)}')).id as id`
+    )).rows[0].id;
+    assert.equal(retriedClientThreadMessage, clientThreadMessage);
+
+    await denied(
+      id(11),
+      `select post_client_message('${id(20)}','Changed request','${id(402)}')`,
+      /does not match/
+    );
+    await denied(
+      id(11),
+      `select post_client_message('${id(21)}','Wrong client','${id(403)}')`,
+      /Not authorized/
+    );
+
+    assert.equal(
+      (await asUser(
+        id(10),
+        `select count(*)::int as n from notifications
+         where kind='client_message' and subject_client_id='${id(20)}'`
+      )).rows[0].n,
+      1
+    );
+
+    const staffThreadMessage = (await asUser(
+      id(10),
+      `select (post_client_message('${id(20)}','Secure reply from staff','${id(404)}')).id as id`
+    )).rows[0].id;
+    assert.ok(staffThreadMessage);
+
+    const clientThreadNotice = (await asUser(
+      id(11),
+      `select id from notifications
+       where kind='client_message' and subject_client_id='${id(20)}'
+       order by created_at desc limit 1`
+    )).rows[0];
+    assert.ok(clientThreadNotice);
+
+    await asUser(
+      id(11),
+      `select mark_client_message_notifications_read('${id(20)}',now())`
+    );
+    assert.ok(
+      (await db.query(
+        `select read_at from notifications where id='${clientThreadNotice.id}'`
+      )).rows[0].read_at
+    );
+
     // Message notifications route to the other party, are idempotent, and cannot leak across firms.
     const staffMessage = (await asUser(id(10), `select (post_organizer_message('${id(30)}','Please check the document','${id(201)}')).id as id`)).rows[0].id;
     await asUser(id(10), `select post_organizer_message('${id(30)}','Please check the document','${id(201)}')`);
