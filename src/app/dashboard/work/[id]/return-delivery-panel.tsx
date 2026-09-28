@@ -13,6 +13,9 @@ type ReturnCopy = {
   client_visible: boolean;
   released_at: string | null;
   url: string | null;
+  access_count: number;
+  first_accessed_at: string | null;
+  last_accessed_at: string | null;
 };
 
 export function ReturnDeliveryPanel({
@@ -183,6 +186,26 @@ export function ReturnDeliveryPanel({
                             new Date(document.released_at).toLocaleString()
                           : ""}
                       </p>
+                      {document.client_visible && (
+                        <div className="mt-2">
+                          {document.access_count > 0 ? (
+                            <p className="text-xs font-medium text-emerald-700">
+                              Client opened {document.access_count} time{document.access_count === 1 ? "" : "s"}
+                              {document.first_accessed_at
+                                ? " · First " + new Date(document.first_accessed_at).toLocaleString()
+                                : ""}
+                              {document.last_accessed_at &&
+                              document.last_accessed_at !== document.first_accessed_at
+                                ? " · Latest " + new Date(document.last_accessed_at).toLocaleString()
+                                : ""}
+                            </p>
+                          ) : (
+                            <p className="text-xs font-medium text-amber-700">
+                              Released, but no client open has been recorded yet.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex shrink-0 flex-wrap gap-2">
