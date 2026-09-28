@@ -39,6 +39,7 @@ export default async function DashboardPage() {
     { count: myReviews },
     { count: overdueReturns },
     { count: dueSoonReturns },
+    { count: myOpenTasks },
     { count: activeClients },
     { count: waitingReturns },
     { count: reviewReturns },
@@ -67,6 +68,11 @@ export default async function DashboardPage() {
       .gte("due_date", today)
       .lte("due_date", dueSoon)
       .not("status", "in", '("accepted","completed")'),
+    supabase
+      .from("staff_tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_to", profile.id)
+      .neq("status", "done"),
     supabase.from("clients").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("tax_return_jobs").select("id", { count: "exact", head: true }).eq("status", "waiting_on_client"),
     supabase.from("tax_return_jobs").select("id", { count: "exact", head: true }).eq("status", "review"),
@@ -135,7 +141,7 @@ export default async function DashboardPage() {
           <h2 className="font-semibold text-slate-950">My workload</h2>
           <p className="mt-1 text-sm text-slate-500">Assignments currently owned by you.</p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <Link href="/dashboard/work" className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm transition hover:bg-blue-100/70">
             <p className="text-sm font-semibold text-blue-700">Preparation assignments</p>
             <p className="mt-3 text-3xl font-semibold tracking-tight text-blue-950">{myPreparation ?? 0}</p>
@@ -145,6 +151,11 @@ export default async function DashboardPage() {
             <p className="text-sm font-semibold text-violet-700">Review assignments</p>
             <p className="mt-3 text-3xl font-semibold tracking-tight text-violet-950">{myReviews ?? 0}</p>
             <p className="mt-1 text-xs text-violet-700">Formal return reviews waiting for your sign-off</p>
+          </Link>
+          <Link href="/dashboard/tasks" className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm transition hover:bg-cyan-100/70">
+            <p className="text-sm font-semibold text-cyan-700">My open tasks</p>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-cyan-950">{myOpenTasks ?? 0}</p>
+            <p className="mt-1 text-xs text-cyan-700">Internal follow-ups assigned to you</p>
           </Link>
         </div>
       </section>
