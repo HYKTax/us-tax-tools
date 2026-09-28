@@ -174,6 +174,44 @@ test('database authorization and organizer lifecycle', async () => {
       (await db.query(`select is_pinned from client_notes where id='${id(63)}'`)).rows[0].is_pinned,
       true
     );
+
+    await asUser(id(10), `
+      insert into staff_tasks(
+        id,firm_id,client_id,title,priority,due_date,assigned_to,created_by
+      ) values (
+        '${id(64)}','${id(1)}','${id(20)}','Review client follow-up',
+        'high','2026-10-01','${id(14)}','${id(10)}'
+      )
+    `);
+    assert.equal(
+      (await asUser(id(14), `select title from staff_tasks where id='${id(64)}'`)).rows[0].title,
+      'Review client follow-up'
+    );
+    assert.equal(
+      (await asUser(id(11), `select id from staff_tasks where id='${id(64)}'`)).rows.length,
+      0
+    );
+    assert.equal(
+      (await asUser(id(12), `select id from staff_tasks where id='${id(64)}'`)).rows.length,
+      0
+    );
+    await denied(
+      id(11),
+      `insert into staff_tasks(firm_id,client_id,title,created_by) values ('${id(1)}','${id(20)}','Client task','${id(11)}')`,
+      /row-level security|permission denied/
+    );
+    await denied(
+      id(10),
+      `update staff_tasks set client_id='${id(21)}' where id='${id(64)}'`,
+      /same firm|Client must belong/
+    );
+    await asUser(id(14), `update staff_tasks set status='done' where id='${id(64)}'`);
+    const completedTask = (await db.query(
+      `select status,completed_at from staff_tasks where id='${id(64)}'`
+    )).rows[0];
+    assert.equal(completedTask.status,'done');
+    assert.ok(completedTask.completed_at);
+
     const documentId = (await db.query('select id from documents limit 1')).rows[0].id;
     await db.query("insert into document_extractions(document_id,status,fields) values ($1,'completed','{}')", [documentId]);
     await denied(id(10), "update document_extractions set fields='{}'", /permission denied/);
