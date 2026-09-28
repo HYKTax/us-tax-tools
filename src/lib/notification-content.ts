@@ -3,6 +3,7 @@ export const notificationLabels: Record<string, string> = {
   client_message: "New client message",
   document_request: "New document requested",
   document_received: "Requested document received",
+  engagement_sent: "Engagement ready for review",
   organizer_sent: "New organizer ready",
   organizer_started: "Client started their organizer",
   organizer_submitted: "Organizer submitted for review",
@@ -36,9 +37,13 @@ export function notificationContent(
       ? target.forClient
         ? "/portal/messages"
         : `/dashboard/messages/${target.clientId}`
-      : target.forClient
-        ? "/portal/documents"
-        : "/dashboard/documents"
+      : kind === "engagement_sent"
+        ? target.forClient
+          ? "/portal/engagements"
+          : "/dashboard/engagements"
+        : target.forClient
+          ? "/portal/documents"
+          : "/dashboard/documents"
     : target.taxReturnJobId
     ? target.forClient
       ? "/portal/returns"
