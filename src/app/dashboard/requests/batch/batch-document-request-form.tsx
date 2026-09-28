@@ -9,18 +9,27 @@ type ClientOption = {
   primary_contact_name: string;
   email: string;
   client_type: string;
+  tag_ids: string[];
+};
+
+type TagOption = {
+  id: string;
+  name: string;
 };
 
 export function BatchDocumentRequestForm({
   clients,
+  tags,
 }: {
   clients: ClientOption[];
+  tags: TagOption[];
 }) {
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [query, setQuery] = useState("");
   const [clientType, setClientType] = useState("");
+  const [tagId, setTagId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -29,13 +38,14 @@ export function BatchDocumentRequestForm({
     const q = query.trim().toLowerCase();
     return clients.filter((client) => {
       if (clientType && client.client_type !== clientType) return false;
+      if (tagId && !client.tag_ids.includes(tagId)) return false;
       if (!q) return true;
       return (
         client.primary_contact_name.toLowerCase().includes(q) ||
         client.email.toLowerCase().includes(q)
       );
     });
-  }, [clients, query, clientType]);
+  }, [clients, query, clientType, tagId]);
 
   function toggle(id: string) {
     setSelected((previous) => {
@@ -162,7 +172,7 @@ export function BatchDocumentRequestForm({
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5">
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div className="grid gap-3 sm:grid-cols-3">
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -180,6 +190,20 @@ export function BatchDocumentRequestForm({
               <option value="">All client types</option>
               <option value="individual">Individuals</option>
               <option value="business">Businesses</option>
+            </select>
+            <select
+              value={tagId}
+              onChange={(event) => {
+                setTagId(event.target.value);
+                setSelected(new Set());
+              }}
+              className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm"
+              aria-label="Client tag"
+            >
+              <option value="">All tags</option>
+              {tags.map((tag) => (
+                <option key={tag.id} value={tag.id}>{tag.name}</option>
+              ))}
             </select>
           </div>
 
