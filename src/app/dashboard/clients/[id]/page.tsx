@@ -119,6 +119,7 @@ export default async function ClientDetailPage({
     { data: noteRows },
     { data: allDocumentIds },
     { data: tagAssignments },
+    { data: engagementRows },
   ] = await Promise.all([
     supabase
       .from("organizers")
@@ -161,6 +162,12 @@ export default async function ClientDetailPage({
       .select("tag:client_tags!client_tag_assignments_tag_id_fkey(id,name)")
       .eq("client_id", id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("client_engagements")
+      .select("id,title,status,sent_at,acknowledged_name,acknowledged_at")
+      .eq("client_id", id)
+      .order("sent_at", { ascending: false })
+      .limit(50),
   ]);
 
   const organizerRows = (organizers ?? []) as OrganizerRow[];
@@ -194,6 +201,13 @@ export default async function ClientDetailPage({
       return tag ? { id: tag.id, name: tag.name } : null;
     })
     .filter((tag): tag is ClientTagView => Boolean(tag));
+  const pendingEngagementCount = (engagementRows ?? []).filter(
+    (item) => item.status === "sent"
+  ).length;
+  const acknowledgedEngagementCount = (engagementRows ?? []).filter(
+    (item) => item.status === "acknowledged"
+  ).length;
+
   const contact: ClientContactValues = {
     phone: client.phone,
     address_line1: client.address_line1,
@@ -289,6 +303,59 @@ export default async function ClientDetailPage({
           <p className="text-sm text-slate-500">Organizers ready for review</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{submitted}</p>
         </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="font-semibold text-slate-950">Engagements</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {pendingEngagementCount} awaiting acknowledgment · {acknowledgedEngagementCount} acknowledged
+            </p>
+          </div>
+          <Link
+            href="/dashboard/engagements"
+            className="w-fit rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Manage engagements
+          </Link>
+        </div>
+        {!(engagementRows ?? []).length ? (
+          <p className="px-5 py-9 text-center text-sm text-slate-500">
+            No engagement letters sent to this client yet.
+          </p>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {(engagementRows ?? []).slice(0, 5).map((item) => (
+              <div key={item.id} className="flex flex-col justify-between gap-3 px-5 py-4 sm:flex-row sm:items-start">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Sent {new Date(item.sent_at).toLocaleString()}
+                    {item.acknowledged_at
+                      ? " · Acknowledged " + new Date(item.acknowledged_at).toLocaleString()
+                      : ""}
+                  </p>
+                  {item.acknowledged_name && (
+                    <p className="mt-1 text-xs font-medium text-slate-600">
+                      {item.acknowledged_name}
+                    </p>
+                  )}
+                </div>
+                <span className={
+                  "w-fit rounded-full px-2.5 py-1 text-xs font-semibold capitalize " +
+                  (item.status === "acknowledged"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : item.status === "sent"
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-slate-100 text-slate-500")
+                }>
+                  {item.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {client.status === "archived" && (
