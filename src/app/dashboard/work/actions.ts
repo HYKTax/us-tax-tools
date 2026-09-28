@@ -16,7 +16,12 @@ const priorities = new Set(["low","normal","high","urgent"]);
 const extensionStatuses = new Set(["not_needed","planned","filed"]);
 const efileStatuses = new Set(["not_ready","ready","transmitted","accepted","rejected"]);
 
-export type ReturnActionResult = { error?: string; success?: boolean; id?: string };
+export type ReturnActionResult = {
+  error?: string;
+  success?: boolean;
+  id?: string;
+  message?: string;
+};
 
 export async function createTaxReturnJob(input: {
   clientId: string;
@@ -81,27 +86,89 @@ export async function updateTaxReturnJob(input: {
   if (!efileStatuses.has(input.efileStatus)) return { error: "Choose a valid e-file status." };
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("tax_return_jobs")
-    .update({
-      status: input.status,
-      priority: input.priority,
-      due_date: input.dueDate || null,
-      preparer_id: input.preparerId || null,
-      reviewer_id: input.reviewerId || null,
-      extension_status: input.extensionStatus,
-      efile_status: input.efileStatus,
-    })
-    .eq("id", input.id)
-    .select("id")
-    .single();
+  const { error } = await supabase.rpc("update_tax_return_job", {
+    p_id: input.id,
+    p_status: input.status,
+    p_priority: input.priority,
+    p_due_date: input.dueDate || null,
+    p_preparer_id: input.preparerId || null,
+    p_reviewer_id: input.reviewerId || null,
+    p_extension_status: input.extensionStatus,
+    p_efile_status: input.efileStatus,
+  });
 
-  if (error || !data) return { error: error?.message ?? "Couldn't update the tax return." };
+  if (error) return { error: error.message };
 
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/work");
   revalidatePath(`/dashboard/work/${input.id}`);
   revalidatePath(`/dashboard/clients/${input.clientId}`);
-  return { success: true };
+  return { success: true, message: "Return workflow updated." };
+}
+
+export async function requestTaxReturnReview(
+  jobId: string,
+  clientId: string,
+  note: string
+): Promise<ReturnActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile || !hasStaffPermission(profile, "returns.manage")) {
+    return { error: "Your role cannot request return review." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("request_tax_return_review", {
+    p_job_id: jobId,
+    p_note: note.trim() || null,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/work");
+  revalidatePath(`/dashboard/work/${jobId}`);
+  revalidatePath(`/dashboard/clients/${clientId}`);
+
+  return {
+    success: true,
+    id: typeof data === "string" ? data : undefined,
+    message: "Return sent to review.",
+  };
+}
+
+export async function resolveTaxReturnReview(input: {
+  reviewId: string;
+  jobId: string;
+  clientId: string;
+  decision: "approved" | "changes_requested";
+  note: string;
+}): Promise<ReturnActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile || !hasStaffPermission(profile, "returns.review")) {
+    return { error: "Your role cannot resolve return reviews." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("resolve_tax_return_review", {
+    p_review_id: input.reviewId,
+    p_decision: input.decision,
+    p_note: input.note.trim() || null,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/work");
+  revalidatePath(`/dashboard/work/${input.jobId}`);
+  revalidatePath(`/dashboard/clients/${input.clientId}`);
+
+  return {
+    success: true,
+    message:
+      input.decision === "approved"
+        ? "Review approved. The return is ready to file."
+        : "Changes requested. The return is back in preparation.",
+  };
 }
 
 export async function openTaxReturnJob(id: string) {
