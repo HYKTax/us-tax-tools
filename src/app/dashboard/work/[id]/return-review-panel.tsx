@@ -41,6 +41,9 @@ export function ReturnReviewPanel({
   reviews,
   canManageReturns,
   canReviewReturns,
+  sourceDocumentsReady,
+  aiReviewsReady,
+  hasSourceConflicts,
 }: {
   jobId: string;
   clientId: string;
@@ -50,6 +53,9 @@ export function ReturnReviewPanel({
   reviews: ReviewRow[];
   canManageReturns: boolean;
   canReviewReturns: boolean;
+  sourceDocumentsReady: boolean;
+  aiReviewsReady: boolean;
+  hasSourceConflicts: boolean;
 }) {
   const openReview = reviews.find((review) => review.status === "requested") ?? null;
   const [requestNote, setRequestNote] = useState("");
@@ -63,6 +69,8 @@ export function ReturnReviewPanel({
     "extended",
     "rejected",
   ].includes(jobStatus);
+  const sourceReady =
+    sourceDocumentsReady && aiReviewsReady && !hasSourceConflicts;
 
   const runRequest = () => {
     setMessage(null);
@@ -194,6 +202,24 @@ export function ReturnReviewPanel({
                 <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
                   Move the return into preparation before requesting review.
                 </p>
+              ) : !sourceReady ? (
+                <div className="mt-4 space-y-2">
+                  {!sourceDocumentsReady && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                      Review every linked source document before final return review.
+                    </p>
+                  )}
+                  {!aiReviewsReady && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                      Human-review all completed AI extractions before final return review.
+                    </p>
+                  )}
+                  {hasSourceConflicts && (
+                    <p className="rounded-lg bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">
+                      Resolve conflicting approved source values before final return review.
+                    </p>
+                  )}
+                </div>
               ) : (
                 <>
                   <textarea
