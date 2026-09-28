@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
-import { getNotifications, markNotificationRead, type NotificationRow } from "@/lib/actions/notifications";
+import { getNotifications, markAllNotificationsRead, markNotificationRead, type NotificationRow } from "@/lib/actions/notifications";
 import { notificationLabels } from "@/lib/notification-content";
 
 export function Notifications({
@@ -89,14 +89,40 @@ export function Notifications({
           }}
           className="absolute right-0 z-30 mt-2 max-h-[28rem] w-80 max-w-[90vw] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xl"
         >
-          <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-4 py-3">
+          <div className="sticky top-0 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
             <div>
               <h2 className="font-semibold text-slate-950">Notifications</h2>
               <p className="text-xs text-slate-500">{unread} unread</p>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Close notifications" className="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">
-              Close
-            </button>
+            <div className="flex items-center gap-1">
+              {unread > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void markAllNotificationsRead()
+                      .then((result) => {
+                        if (!result.error) {
+                          setUnread(0);
+                          setRows((current) =>
+                            current.map((row) => ({
+                              ...row,
+                              read_at: row.read_at ?? new Date().toISOString(),
+                            }))
+                          );
+                          window.dispatchEvent(new Event("notifications-refresh"));
+                        }
+                      })
+                      .catch(() => setError("Notifications could not be updated."));
+                  }}
+                  className="rounded-lg px-2 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50"
+                >
+                  Mark all read
+                </button>
+              )}
+              <button onClick={() => setOpen(false)} aria-label="Close notifications" className="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">
+                Close
+              </button>
+            </div>
           </div>
 
           {!emailConfigured && (
