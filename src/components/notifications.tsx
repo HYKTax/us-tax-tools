@@ -5,7 +5,15 @@ import { useEffect, useId, useState } from "react";
 import { getNotifications, markNotificationRead, type NotificationRow } from "@/lib/actions/notifications";
 import { notificationLabels } from "@/lib/notification-content";
 
-export function Notifications({ area, emailConfigured }: { area: "dashboard" | "portal"; emailConfigured: boolean }) {
+export function Notifications({
+  area,
+  emailConfigured,
+  emailMissing = [],
+}: {
+  area: "dashboard" | "portal";
+  emailConfigured: boolean;
+  emailMissing?: string[];
+}) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [unread, setUnread] = useState(0);
@@ -92,9 +100,14 @@ export function Notifications({ area, emailConfigured }: { area: "dashboard" | "
           </div>
 
           {!emailConfigured && (
-            <p className="m-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Email alerts are unavailable. Portal notifications will still appear here.
-            </p>
+            <div className="m-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+              <p>Email alerts are unavailable. Portal notifications will still appear here.</p>
+              {area === "dashboard" && emailMissing.length > 0 && (
+                <p className="mt-1">
+                  Missing Vercel configuration: <span className="font-semibold">{emailMissing.join(", ")}</span>
+                </p>
+              )}
+            </div>
           )}
           {error && <p role="status" className="px-4 py-3 text-sm text-red-600">{error}</p>}
           {!loaded && !error && <p className="px-4 py-6 text-sm text-slate-500">Loading…</p>}
