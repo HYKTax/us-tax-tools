@@ -61,7 +61,7 @@ export default async function PortalPage() {
 
       {error && <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">Couldn&apos;t load your organizers: {error.message}</p>}
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Link
           href="/portal/status"
           className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md"
@@ -70,6 +70,16 @@ export default async function PortalPage() {
           <h2 className="mt-2 font-semibold text-slate-950">Track your tax return</h2>
           <p className="mt-1 text-sm leading-6 text-slate-500">
             See preparation, review, filing, and acceptance progress.
+          </p>
+        </Link>
+        <Link
+          href="/portal/messages"
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+        >
+          <p className="text-sm font-semibold text-blue-600">Messages</p>
+          <h2 className="mt-2 font-semibold text-slate-950">Contact your tax professional</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            Send a secure portal message without using ordinary email.
           </p>
         </Link>
         <Link
