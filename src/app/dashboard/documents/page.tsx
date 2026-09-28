@@ -119,12 +119,20 @@ export default async function DocumentsPage({
             Review source files, AI-extracted fields, and securely managed final return copies.
           </p>
         </div>
-        <Link
-          href="/dashboard/requests"
-          className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          Request documents
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/documents/export"
+            className="w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Export CSV
+          </Link>
+          <Link
+            href="/dashboard/requests"
+            className="w-fit rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Request documents
+          </Link>
+        </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
