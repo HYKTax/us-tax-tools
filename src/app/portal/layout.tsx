@@ -102,7 +102,7 @@ export default async function PortalLayout({
             </form>
           </div>
         </div>
-        <nav className="mx-auto flex max-w-6xl gap-1 border-t border-slate-100 px-4 py-2 sm:hidden">
+        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto whitespace-nowrap border-t border-slate-100 px-4 py-2 sm:hidden">
           <Link
             href="/portal"
             className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
