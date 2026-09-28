@@ -149,17 +149,51 @@ export default async function ReturnJobPage({
     status: string;
   } | null;
 
-  const returnCopies = await withSignedUrls(
-    supabase,
-    (returnCopyRows ?? []) as Array<{
-      id: string;
-      file_name: string;
-      storage_path: string;
-      created_at: string;
-      client_visible: boolean;
-      released_at: string | null;
-    }>
-  );
+  const returnCopyBase = (returnCopyRows ?? []) as Array<{
+    id: string;
+    file_name: string;
+    storage_path: string;
+    created_at: string;
+    client_visible: boolean;
+    released_at: string | null;
+  }>;
+
+  const { data: returnAccessRows } = returnCopyBase.length
+    ? await supabase
+        .from("document_access_events")
+        .select("document_id,created_at")
+        .in("document_id", returnCopyBase.map((document) => document.id))
+        .order("created_at", { ascending: true })
+    : { data: [] as Array<{ document_id: string; created_at: string }> };
+
+  const accessByDocument = new Map<
+    string,
+    { count: number; first: string | null; last: string | null }
+  >();
+
+  for (const event of returnAccessRows ?? []) {
+    const current = accessByDocument.get(event.document_id) ?? {
+      count: 0,
+      first: null,
+      last: null,
+    };
+    current.count += 1;
+    current.first ??= event.created_at;
+    current.last = event.created_at;
+    accessByDocument.set(event.document_id, current);
+  }
+
+  const returnCopies = (
+    await withSignedUrls(supabase, returnCopyBase)
+  ).map((document) => {
+    const access = accessByDocument.get(document.id);
+    return {
+      ...document,
+      access_count: access?.count ?? 0,
+      first_accessed_at: access?.first ?? null,
+      last_accessed_at: access?.last ?? null,
+    };
+  });
 
   const linkedDocuments = documents ?? [];
   const reviewedDocuments = linkedDocuments.filter((document) => document.status === "reviewed").length;
