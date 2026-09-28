@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -162,7 +163,7 @@ export default async function ClientActionsPage() {
             {items.map((item) => (
               <Link
                 key={item.key}
-                href={item.href}
+                href={item.href as Route}
                 className="block px-5 py-5 transition hover:bg-slate-50"
               >
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
