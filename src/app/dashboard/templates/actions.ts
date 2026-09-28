@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { hasStaffPermission } from "@/lib/staff-permissions";
@@ -80,4 +81,30 @@ export async function createTemplate(input: {
   }
 
   redirect("/dashboard/templates");
+}
+
+
+export async function duplicateTemplate(input: {
+  templateId: string;
+  taxYear: number;
+}): Promise<{ error?: string; success?: boolean }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !hasStaffPermission(profile, "templates.manage")) {
+    return { error: "Your role cannot manage organizer templates." };
+  }
+
+  if (!Number.isInteger(input.taxYear) || input.taxYear < 2000 || input.taxYear > 2100) {
+    return { error: "Enter a valid tax year." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("duplicate_organizer_template", {
+    p_template_id: input.templateId,
+    p_tax_year: input.taxYear,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/templates");
+  return { success: true };
 }
