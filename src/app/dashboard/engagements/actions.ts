@@ -144,3 +144,42 @@ export async function acknowledgeEngagement(
   revalidatePath("/portal/engagements");
   return { success: true };
 }
+
+
+export async function sendEngagementsBatch(input: {
+  clientIds: string[];
+  templateId: string;
+}): Promise<EngagementActionResult & { created?: number; skipped?: number; message?: string }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !hasStaffPermission(profile, "clients.manage")) {
+    return { error: "Your role cannot send client engagements." };
+  }
+
+  const clientIds = Array.from(new Set(input.clientIds)).filter(Boolean);
+  if (clientIds.length === 0) return { error: "Select at least one client." };
+  if (clientIds.length > 200) return { error: "Send to no more than 200 clients at a time." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("send_engagements_batch", {
+    p_client_ids: clientIds,
+    p_template_id: input.templateId,
+  });
+
+  if (error) return { error: error.message };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const created = Number(row?.created_count ?? 0);
+  const skipped = Number(row?.skipped_count ?? 0);
+
+  revalidatePath("/dashboard/engagements");
+  revalidatePath("/portal/engagements");
+
+  return {
+    success: true,
+    created,
+    skipped,
+    message:
+      "Created " + created + " engagement" + (created === 1 ? "" : "s") +
+      (skipped ? "; skipped " + skipped + " pending duplicate" + (skipped === 1 ? "" : "s") + "." : "."),
+  };
+}
