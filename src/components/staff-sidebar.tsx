@@ -20,6 +20,7 @@ const readinessNavItem = { href: "/dashboard/readiness", label: "Readiness", ico
 const analyticsNavItem = { href: "/dashboard/analytics", label: "Analytics", icon: "analytics" } as const;
 const workloadNavItem = { href: "/dashboard/workload", label: "Team workload", icon: "workload" } as const;
 const activityNavItem = { href: "/dashboard/activity", label: "Activity", icon: "activity" } as const;
+const usageNavItem = { href: "/dashboard/usage", label: "Usage", icon: "analytics" } as const;
 const adminNavItem = { href: "/dashboard/team", label: "Team", icon: "users" } as const;
 const settingsNavItem = { href: "/dashboard/settings", label: "Settings", icon: "settings" } as const;
 
@@ -94,7 +95,7 @@ export function StaffSidebar({
 }) {
   const navItems = [
     ...baseNavItems,
-    ...(canViewActivity ? [readinessNavItem, analyticsNavItem, workloadNavItem, activityNavItem] : []),
+    ...(canViewActivity ? [readinessNavItem, analyticsNavItem, workloadNavItem, activityNavItem, usageNavItem] : []),
     ...(canManageTeam ? [adminNavItem, settingsNavItem] : []),
   ];
 
