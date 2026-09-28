@@ -10,7 +10,8 @@ export type StaffPermission =
   | "returns.manage"
   | "returns.review"
   | "templates.manage"
-  | "team.manage";
+  | "team.manage"
+  | "audit.view";
 
 export const staffRoleOptions: Array<{
   value: StaffOperationalRole;
@@ -51,6 +52,7 @@ const rolePermissions: Record<StaffOperationalRole, ReadonlySet<StaffPermission>
     "returns.review",
     "templates.manage",
     "team.manage",
+    "audit.view",
   ]),
   manager: new Set<StaffPermission>([
     "clients.manage",
@@ -62,6 +64,7 @@ const rolePermissions: Record<StaffOperationalRole, ReadonlySet<StaffPermission>
     "returns.manage",
     "returns.review",
     "templates.manage",
+    "audit.view",
   ]),
   reviewer: new Set<StaffPermission>([
     "organizers.review",
