@@ -198,7 +198,7 @@ test('database authorization and organizer lifecycle', async () => {
     await denied(
       id(11),
       `insert into staff_tasks(firm_id,client_id,title,created_by) values ('${id(1)}','${id(20)}','Client task','${id(11)}')`,
-      /row-level security|permission denied/
+      /row-level security|permission denied|Creator must be active staff/
     );
     await denied(
       id(10),
