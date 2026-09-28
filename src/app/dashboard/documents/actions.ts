@@ -94,6 +94,48 @@ export async function runDocumentExtraction(documentId: string): Promise<ActionR
     return { error: "Document not found." };
   }
 
+  if (document.tax_return_job_id) {
+    const { data: linkedJob } = await supabase
+      .from("tax_return_jobs")
+      .select("id, status, review_version")
+      .eq("id", document.tax_return_job_id)
+      .maybeSingle();
+
+    if (linkedJob) {
+      const [{ data: activeReview }, { data: currentApproval }] = await Promise.all([
+        supabase
+          .from("tax_return_reviews")
+          .select("id")
+          .eq("tax_return_job_id", linkedJob.id)
+          .eq("status", "requested")
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("tax_return_reviews")
+          .select("id")
+          .eq("tax_return_job_id", linkedJob.id)
+          .eq("return_version", linkedJob.review_version)
+          .eq("status", "approved")
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (activeReview) {
+        return {
+          error:
+            "Resolve the active return review before re-running AI extraction on a linked source document.",
+        };
+      }
+
+      if (currentApproval) {
+        return {
+          error:
+            "This return already has current reviewer approval. Move it back to preparation before re-running AI extraction so a new review cycle is required.",
+        };
+      }
+    }
+  }
+
   const mimeType = document.mime_type || (document.file_name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "");
   const supported = mimeType === "application/pdf" || supportedImages.has(mimeType);
   const admin = createAdminClient();
