@@ -179,3 +179,92 @@ export async function resolveTaxReturnReview(input: {
 export async function openTaxReturnJob(id: string) {
   redirect(`/dashboard/work/${id}`);
 }
+
+
+export async function createTaxReturnJobsBatch(input: {
+  clientIds: string[];
+  taxYear: number;
+  returnType: string;
+  dueDate?: string;
+  preparerId?: string;
+  reviewerId?: string;
+}): Promise<ReturnActionResult & { created?: number; skipped?: number }> {
+  const profile = await getCurrentProfile();
+  if (!profile || !hasStaffPermission(profile, "returns.manage")) {
+    return { error: "Your role cannot manage tax-return workflow." };
+  }
+
+  const clientIds = Array.from(new Set(input.clientIds)).filter(Boolean);
+  if (clientIds.length === 0) return { error: "Select at least one client." };
+  if (clientIds.length > 200) return { error: "Create no more than 200 returns at a time." };
+  if (!returnTypes.has(input.returnType)) return { error: "Choose a valid return type." };
+  if (!Number.isInteger(input.taxYear) || input.taxYear < 2000 || input.taxYear > 2100) {
+    return { error: "Enter a valid tax year." };
+  }
+
+  const supabase = await createClient();
+  const [{ data: clients, error: clientsError }, { data: existing, error: existingError }] =
+    await Promise.all([
+      supabase
+        .from("clients")
+        .select("id")
+        .in("id", clientIds)
+        .eq("status", "active"),
+      supabase
+        .from("tax_return_jobs")
+        .select("client_id")
+        .in("client_id", clientIds)
+        .eq("tax_year", input.taxYear)
+        .eq("return_type", input.returnType),
+    ]);
+
+  if (clientsError || existingError) {
+    return { error: "The selected clients could not be validated." };
+  }
+
+  const allowed = new Set((clients ?? []).map((client) => client.id));
+  if (allowed.size !== clientIds.length) {
+    return { error: "One or more selected clients are unavailable or inactive." };
+  }
+
+  const existingIds = new Set((existing ?? []).map((job) => job.client_id));
+  const createIds = clientIds.filter((clientId) => !existingIds.has(clientId));
+
+  if (createIds.length === 0) {
+    return {
+      success: true,
+      created: 0,
+      skipped: clientIds.length,
+      message: "All selected clients already have this return.",
+    };
+  }
+
+  const rows = createIds.map((clientId) => ({
+    firm_id: profile.firm_id,
+    client_id: clientId,
+    tax_year: input.taxYear,
+    return_type: input.returnType,
+    due_date: input.dueDate || null,
+    preparer_id: input.preparerId || null,
+    reviewer_id: input.reviewerId || null,
+    created_by: profile.id,
+  }));
+
+  const { error } = await supabase.from("tax_return_jobs").insert(rows);
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/work");
+  revalidatePath("/dashboard/clients");
+
+  return {
+    success: true,
+    created: createIds.length,
+    skipped: existingIds.size,
+    message:
+      `Created ${createIds.length} return${createIds.length === 1 ? "" : "s"}` +
+      (existingIds.size
+        ? `; skipped ${existingIds.size} existing return${existingIds.size === 1 ? "" : "s"}.`
+        : "."),
+  };
+}
