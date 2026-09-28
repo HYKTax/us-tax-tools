@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -77,12 +78,20 @@ export default async function TasksPage() {
 
   return (
     <div className="flex flex-col gap-7">
-      <section>
-        <p className="text-sm font-semibold text-blue-600">Firm operations</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Tasks</h1>
-        <p className="mt-2 max-w-3xl text-slate-500">
-          Track internal follow-ups, preparation handoffs, document questions, and filing work.
-        </p>
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-semibold text-blue-600">Firm operations</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Tasks</h1>
+          <p className="mt-2 max-w-3xl text-slate-500">
+            Track internal follow-ups, preparation handoffs, document questions, and filing work.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/tasks/export"
+          className="w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          Export CSV
+        </Link>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
